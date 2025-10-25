@@ -160,7 +160,7 @@ export default function PricingPage() {
                   How long will the free beta last?
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  We're committed to keeping Farelines free during our beta period, which we expect to last through 2025. 
+                  We&apos;re committed to keeping Farelines free during our beta period, which we expect to last through 2025. 
                   Beta users will receive special discounts when we introduce paid plans.
                 </p>
               </div>
@@ -181,7 +181,7 @@ export default function PricingPage() {
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
                   Yes, we offer a 30-day money-back guarantee on all paid plans. 
-                  If you're not satisfied, contact our support team for a full refund.
+                  If you&apos;re not satisfied, contact our support team for a full refund.
                 </p>
               </div>
               
@@ -190,7 +190,7 @@ export default function PricingPage() {
                   What payment methods do you accept?
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  When paid plans launch, we'll accept all major credit cards, PayPal, and corporate invoicing for enterprise customers.
+                  When paid plans launch, we&apos;ll accept all major credit cards, PayPal, and corporate invoicing for enterprise customers.
                 </p>
               </div>
             </div>
