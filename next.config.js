@@ -31,7 +31,14 @@ const nextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; font-src 'self' data:; connect-src 'self';"
+            // ✅ updated to allow OAuth + Vercel + API connections
+            value:
+              "default-src 'self'; " +
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://accounts.google.com https://www.googletagmanager.com; " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' blob: data: https:; " +
+              "font-src 'self' data:; " +
+              "connect-src 'self' https://accounts.google.com https://www.googleapis.com https://vercel.live;"
           }
         ]
       }
@@ -40,3 +47,4 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
+
