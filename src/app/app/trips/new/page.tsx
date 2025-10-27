@@ -15,7 +15,8 @@ import {
   Upload,
   Link as LinkIcon,
   AlertCircle,
-  Plane
+  Plane,
+  Save
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { parseGoogleFlightsUrl } from '@/lib/utils'
@@ -37,6 +38,7 @@ interface Flight {
   origin: string
   destination: string
   departureTimeLocal?: string
+  departureTz?: string
 }
 
 export default function AddTripPage() {
@@ -58,7 +60,8 @@ export default function AddTripPage() {
     date: '',
     origin: '',
     destination: '',
-    departureTimeLocal: ''
+    departureTimeLocal: '',
+    departureTz: ''
   }])
   const [paxCount, setPaxCount] = useState(1)
 
@@ -68,7 +71,6 @@ export default function AddTripPage() {
     if (file && file.type === 'application/pdf') {
       setLoading(true)
       // In production, this would upload and parse the PDF
-      // For now, we'll show a message
       alert('PDF parsing will be implemented with the backend service')
       setLoading(false)
       setStep('details')
@@ -94,7 +96,8 @@ export default function AddTripPage() {
             date: leg.date || '',
             origin: leg.origin || '',
             destination: leg.destination || '',
-            departureTimeLocal: ''
+            departureTimeLocal: '',
+            departureTz: ''
           }))
           setFlights(newFlights)
         }
@@ -111,7 +114,8 @@ export default function AddTripPage() {
       date: '',
       origin: '',
       destination: '',
-      departureTimeLocal: ''
+      departureTimeLocal: '',
+      departureTz: ''
     }])
   }
 
@@ -224,7 +228,7 @@ export default function AddTripPage() {
                   </CardHeader>
                   <CardContent>
                     <Input
-                      placeholder="https://www.google.com/flights..."
+                      placeholder="https://www.google.com/travel/flights..."
                       value={googleFlightsUrl}
                       onChange={(e) => setGoogleFlightsUrl(e.target.value)}
                       className="mb-3"
@@ -305,6 +309,27 @@ export default function AddTripPage() {
                       </div>
                     </div>
 
+                    {/* Google Flights URL Field - Now in Manual Entry Too */}
+                    <div>
+                      <Label htmlFor="googleUrl">
+                        Google Flights URL 
+                        <span className="text-muted-foreground text-xs ml-2">(Optional but recommended for price tracking)</span>
+                      </Label>
+                      <div className="relative">
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="googleUrl"
+                          placeholder="https://www.google.com/travel/flights/booking?..."
+                          value={googleFlightsUrl}
+                          onChange={(e) => setGoogleFlightsUrl(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        This helps us track the exact fare type and route for accurate price monitoring
+                      </p>
+                    </div>
+
                     <div className="grid md:grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="paidPrice">Price Paid (USD)</Label>
@@ -383,7 +408,10 @@ export default function AddTripPage() {
                     {flights.map((flight, index) => (
                       <div key={index} className="p-4 border rounded-lg space-y-3">
                         <div className="flex justify-between items-center mb-2">
-                          <h4 className="font-medium">Flight {index + 1}</h4>
+                          <h4 className="font-medium flex items-center">
+                            <Plane className="mr-2 h-4 w-4" />
+                            Flight {index + 1}
+                          </h4>
                           {flights.length > 1 && (
                             <button
                               type="button"
@@ -416,7 +444,7 @@ export default function AddTripPage() {
                           </div>
                         </div>
                         
-                        <div className="grid md:grid-cols-3 gap-3">
+                        <div className="grid md:grid-cols-4 gap-3">
                           <div>
                             <Label>Origin (IATA)</Label>
                             <Input
@@ -443,6 +471,14 @@ export default function AddTripPage() {
                               type="time"
                               value={flight.departureTimeLocal}
                               onChange={(e) => updateFlight(index, 'departureTimeLocal', e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <Label>Timezone</Label>
+                            <Input
+                              placeholder="America/New_York"
+                              value={flight.departureTz}
+                              onChange={(e) => updateFlight(index, 'departureTz', e.target.value)}
                             />
                           </div>
                         </div>
@@ -474,6 +510,7 @@ export default function AddTripPage() {
                     disabled={loading}
                     className="flex-1"
                   >
+                    <Save className="mr-2 h-4 w-4" />
                     {loading ? 'Creating...' : 'Create Trip'}
                   </Button>
                 </div>

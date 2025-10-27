@@ -17,9 +17,12 @@ import {
   Edit,
   Trash2,
   ExternalLink,
-  Archive
+  Archive,
+  ChevronRight,
+  Calendar,
+  RefreshCw
 } from 'lucide-react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, generateTripStatus } from '@/lib/utils'
 import type { Trip } from '@/types/trip'
 
 export default function DashboardPage() {
@@ -59,10 +62,26 @@ export default function DashboardPage() {
       })
       
       if (response.ok) {
-        fetchTrips() // Refresh the list
+        fetchTrips()
       }
     } catch (error) {
       console.error('Error deleting trip:', error)
+    }
+  }
+
+  const handleArchiveTrip = async (tripId: string) => {
+    try {
+      const response = await fetch(`/api/trips/${tripId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isArchived: true })
+      })
+      
+      if (response.ok) {
+        fetchTrips()
+      }
+    } catch (error) {
+      console.error('Error archiving trip:', error)
     }
   }
 
@@ -75,7 +94,7 @@ export default function DashboardPage() {
             <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
             <div className="grid gap-4">
               {[1, 2, 3].map(i => (
-                <div key={i} className="h-32 bg-gray-200 rounded"></div>
+                <div key={i} className="h-48 bg-gray-200 rounded"></div>
               ))}
             </div>
           </div>
@@ -88,13 +107,10 @@ export default function DashboardPage() {
   const now = new Date()
   const activeTrips = trips
     .filter(trip => {
-      // Not archived
       if (trip.isArchived) return false
-      // Has at least one future flight
       return trip.flights.some(flight => new Date(flight.date) > now)
     })
     .sort((a, b) => {
-      // Sort by earliest flight date
       const aDate = new Date(a.flights[0]?.date || '')
       const bDate = new Date(b.flights[0]?.date || '')
       return aDate.getTime() - bDate.getTime()
@@ -102,13 +118,10 @@ export default function DashboardPage() {
 
   const pastTrips = trips
     .filter(trip => {
-      // All flights are in the past
       return !trip.isArchived && trip.flights.every(flight => new Date(flight.date) <= now)
     })
 
-  const archivedTrips = trips.filter(trip => trip.isArchived)
-
-  // Calculate stats only for active trips
+  // Calculate stats for active trips
   const totalActiveMonitoring = activeTrips.filter(t => t.status === 'active').length
   const totalSavings = activeTrips.reduce((sum, trip) => {
     if (trip.lastCheckedPrice && trip.lastCheckedPrice < trip.paidPrice) {
@@ -116,6 +129,7 @@ export default function DashboardPage() {
     }
     return sum
   }, 0)
+  const avgSavings = activeTrips.length > 0 ? totalSavings / activeTrips.length : 0
 
   return (
     <>
@@ -132,14 +146,15 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Stats Cards - Only for Active Trips */}
+          {/* Stats Cards */}
           <div className="grid md:grid-cols-4 gap-4 mb-8">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Active Trips</p>
+                    <p className="text-sm text-muted-foreground">Total Trips</p>
                     <p className="text-2xl font-bold">{activeTrips.length}</p>
+                    <p className="text-xs text-muted-foreground">All time</p>
                   </div>
                   <Plane className="h-8 w-8 text-muted-foreground" />
                 </div>
@@ -150,8 +165,9 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Monitoring</p>
+                    <p className="text-sm text-muted-foreground">Active Monitoring</p>
                     <p className="text-2xl font-bold">{totalActiveMonitoring}</p>
+                    <p className="text-xs text-muted-foreground">Currently tracking</p>
                   </div>
                   <Clock className="h-8 w-8 text-muted-foreground" />
                 </div>
@@ -166,8 +182,9 @@ export default function DashboardPage() {
                     <p className="text-2xl font-bold text-green-600">
                       {formatCurrency(totalSavings)}
                     </p>
+                    <p className="text-xs text-muted-foreground">Potential savings</p>
                   </div>
-                  <TrendingDown className="h-8 w-8 text-green-600" />
+                  <DollarSign className="h-8 w-8 text-green-600" />
                 </div>
               </CardContent>
             </Card>
@@ -177,13 +194,12 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Avg. Savings</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {activeTrips.length > 0 
-                        ? formatCurrency(totalSavings / activeTrips.length)
-                        : '$0'}
+                    <p className="text-2xl font-bold">
+                      {formatCurrency(avgSavings)}
                     </p>
+                    <p className="text-xs text-muted-foreground">Per trip</p>
                   </div>
-                  <DollarSign className="h-8 w-8 text-green-600" />
+                  <TrendingDown className="h-8 w-8 text-muted-foreground" />
                 </div>
               </CardContent>
             </Card>
@@ -192,7 +208,7 @@ export default function DashboardPage() {
           {/* Active Trips Section */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-semibold">Your Active Trips</h2>
+              <h2 className="text-2xl font-semibold">Your Trips</h2>
               <Link href="/app/trips/new">
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
@@ -217,53 +233,93 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4">
-                {activeTrips.map((trip) => (
-                  <Card key={trip._id?.toString()} className="overflow-hidden">
-                    <div className="p-6">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold">{trip.tripName}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            PNR: {trip.recordLocator}
-                          </p>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeTrips.map((trip) => {
+                  const savings = trip.lastCheckedPrice && trip.lastCheckedPrice < trip.paidPrice 
+                    ? trip.paidPrice - trip.lastCheckedPrice 
+                    : 0
+                  const savingsPercent = savings > 0 
+                    ? Math.round((savings / trip.paidPrice) * 100) 
+                    : 0
+                  
+                  return (
+                    <Card key={trip._id?.toString()} className="overflow-hidden hover:shadow-lg transition-shadow">
+                      <CardContent className="p-6">
+                        {/* Card Header */}
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg truncate">{trip.tripName}</h3>
+                            <p className="text-sm text-muted-foreground">PNR: {trip.recordLocator}</p>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => router.push(`/app/trips/${trip._id}/edit`)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleDeleteTrip(trip._id?.toString() || '')}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
+
+                        {/* Status Badge */}
+                        <div className="flex gap-2 mb-4">
                           {trip.status === 'active' && (
                             <Badge variant="default" className="bg-green-500">
                               Monitoring
                             </Badge>
                           )}
-                          {trip.lastCheckedPrice && trip.lastCheckedPrice < trip.paidPrice && (
+                          {savingsPercent > 0 && (
                             <Badge variant="default" className="bg-emerald-600">
-                              Save {formatCurrency(trip.paidPrice - trip.lastCheckedPrice)}
+                              Save {savingsPercent}%
                             </Badge>
                           )}
+                          <Badge variant="secondary">
+                            {trip.fareType?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </Badge>
                         </div>
-                      </div>
 
-                      <div className="space-y-2 mb-4">
-                        {trip.flights.map((flight, idx) => (
-                          <div key={idx} className="flex items-center text-sm">
-                            <Plane className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <span className="font-medium">{flight.origin} → {flight.destination}</span>
-                            <span className="ml-auto text-muted-foreground">
-                              {formatDate(flight.date)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                        {/* Flight Routes */}
+                        <div className="space-y-2 mb-4">
+                          {trip.flights.slice(0, 2).map((flight, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-sm">
+                              <div className="flex items-center">
+                                <span className="font-medium">{flight.origin}</span>
+                                <ChevronRight className="h-3 w-3 mx-1" />
+                                <span className="font-medium">{flight.destination}</span>
+                              </div>
+                              <span className="text-muted-foreground text-xs">
+                                {formatDate(flight.date)}
+                              </span>
+                            </div>
+                          ))}
+                          {trip.flights.length > 2 && (
+                            <p className="text-xs text-muted-foreground">
+                              +{trip.flights.length - 2} more flights
+                            </p>
+                          )}
+                        </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex gap-4 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Paid: </span>
-                            <span className="font-medium">{formatCurrency(trip.paidPrice)}</span>
+                        {/* Pricing Information */}
+                        <div className="space-y-2 pt-4 border-t">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Paid Price:</span>
+                            <span className="font-semibold">{formatCurrency(trip.paidPrice)}</span>
                           </div>
+                          
                           {trip.lastCheckedPrice && (
-                            <div>
-                              <span className="text-muted-foreground">Current: </span>
-                              <span className={`font-medium ${
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">Current Price:</span>
+                              <span className={`font-semibold ${
                                 trip.lastCheckedPrice < trip.paidPrice 
                                   ? 'text-green-600' 
                                   : ''
@@ -272,86 +328,83 @@ export default function DashboardPage() {
                               </span>
                             </div>
                           )}
+                          
+                          {savings > 0 && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">Potential Savings:</span>
+                              <span className="font-bold text-green-600">
+                                {formatCurrency(savings)}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        
-                        <div className="flex items-center space-x-2">
-                          <Link href={`/app/trips/${trip._id}`}>
-                            <Button variant="ghost" size="sm">
-                              View Details
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => router.push(`/app/trips/${trip._id}/edit`)}
-                          >
-                            <Edit className="h-4 w-4" />
+
+                        {/* Last Checked */}
+                        {trip.lastCheckedAt && (
+                          <p className="text-xs text-muted-foreground mt-3 flex items-center">
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Last checked {formatDate(trip.lastCheckedAt)}
+                          </p>
+                        )}
+
+                        {/* View Details Button */}
+                        <Link href={`/app/trips/${trip._id}`}>
+                          <Button className="w-full mt-4" variant="outline" size="sm">
+                            View Details
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteTrip(trip._id?.toString() || '')}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                        </Link>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
             )}
           </div>
 
-          {/* Past Trips Section */}
+          {/* Past/Completed Trips */}
           {pastTrips.length > 0 && (
             <div className="mb-8">
-              <h2 className="text-xl font-semibold mb-4 text-gray-600">Recently Completed Trips</h2>
-              <div className="grid gap-4">
-                {pastTrips.map((trip) => (
-                  <Card key={trip._id?.toString()} className="opacity-75">
-                    <div className="p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-medium">{trip.tripName}</span>
-                          <span className="text-sm text-muted-foreground ml-2">
+              <h2 className="text-xl font-semibold mb-4 text-gray-600">Recently Completed</h2>
+              <div className="space-y-2">
+                {pastTrips.slice(0, 3).map((trip) => (
+                  <Card key={trip._id?.toString()} className="bg-gray-50 dark:bg-gray-800/50">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                          <Archive className="h-5 w-5 text-gray-400" />
+                          <div>
+                            <span className="font-medium">{trip.tripName}</span>
+                            <span className="text-sm text-muted-foreground ml-2">
+                              • {trip.flights[0]?.origin} → {trip.flights[0]?.destination}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">
                             {formatDate(trip.flights[0]?.date)}
                           </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="secondary">Completed</Badge>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => router.push(`/app/trips/${trip._id}`)}
+                            onClick={() => handleArchiveTrip(trip._id?.toString() || '')}
                           >
-                            View
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              // Archive the trip
-                              fetch(`/api/trips/${trip._id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ isArchived: true })
-                              }).then(() => fetchTrips())
-                            }}
-                          >
-                            <Archive className="h-4 w-4" />
+                            Archive
                           </Button>
                         </div>
                       </div>
-                    </div>
+                    </CardContent>
                   </Card>
                 ))}
               </div>
-              <div className="mt-4 text-center">
-                <Link href="/app/history">
-                  <Button variant="outline">View All Past Trips</Button>
-                </Link>
-              </div>
+              {pastTrips.length > 3 && (
+                <div className="mt-4 text-center">
+                  <Link href="/app/history">
+                    <Button variant="outline" size="sm">
+                      View All Past Trips ({pastTrips.length})
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           )}
         </div>
