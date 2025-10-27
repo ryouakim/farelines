@@ -194,7 +194,7 @@ export default function AddTripPage() {
             <>
               <h1 className="text-3xl font-bold mb-2">Add New Trip</h1>
               <p className="text-muted-foreground mb-8">
-                Choose how you'd like to add your flight details
+                Choose how you&apos;d like to add your flight details
               </p>
 
               <div className="grid md:grid-cols-3 gap-6">
