@@ -8,20 +8,17 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { 
   ArrowLeft,
-  ArrowRight,
   Plus,
   X,
   Upload,
   Link as LinkIcon,
   AlertCircle,
-  CheckCircle,
   Plane
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
-import { parseGoogleFlightsUrl, getFareTypeDisplay } from '@/lib/utils'
+import { parseGoogleFlightsUrl } from '@/lib/utils'
 import type { FareType } from '@/types/trip'
 
 const fareTypes: { value: FareType; label: string }[] = [
@@ -44,7 +41,7 @@ interface Flight {
 
 export default function AddTripPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { status } = useSession()
   const [step, setStep] = useState<'method' | 'details'>('method')
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -102,7 +99,7 @@ export default function AddTripPage() {
           setFlights(newFlights)
         }
         setStep('details')
-      } catch (error) {
+      } catch {
         setErrors({ url: 'Invalid Google Flights URL' })
       }
     }
@@ -161,7 +158,7 @@ export default function AddTripPage() {
       } else {
         setErrors(data.fieldErrors || { general: data.error })
       }
-    } catch (error) {
+    } catch {
       setErrors({ general: 'Failed to create trip. Please try again.' })
     } finally {
       setLoading(false)
