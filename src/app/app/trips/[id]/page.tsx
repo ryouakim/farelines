@@ -1,42 +1,29 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import Link from 'next/link'
 import { Header } from '@/components/layout/header'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { 
   ArrowLeft,
-  ArrowRight,
-  Edit,
-  Save,
-  X,
-  RefreshCw,
-  TrendingDown,
-  TrendingUp,
+  Plane,
   Calendar,
   DollarSign,
-  Plane,
-  AlertCircle,
-  CheckCircle,
+  TrendingDown,
+  Clock,
+  Edit,
+  Trash2,
   ExternalLink,
-  Archive,
-  Trash2
+  RefreshCw,
+  Bell
 } from 'lucide-react'
-import { 
-  formatCurrency, 
-  formatDate, 
-  formatDateTime,
-  generateTripStatus, 
-  getFareTypeDisplay,
-  calculateSavings 
-} from '@/lib/utils'
-import type { Trip, FareType } from '@/types/trip'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import type { Trip } from '@/types/trip'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 
 export default function TripDetailsPage() {
   const router = useRouter()
@@ -44,17 +31,7 @@ export default function TripDetailsPage() {
   const { data: session, status } = useSession()
   const [trip, setTrip] = useState<Trip | null>(null)
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [checking, setChecking] = useState(false)
-  
-  // Edit form state
-  const [editData, setEditData] = useState({
-    tripName: '',
-    paidPrice: '',
-    fareType: '' as FareType,
-    thresholdUsd: '',
-  })
+  const [checkingPrice, setCheckingPrice] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -70,14 +47,6 @@ export default function TripDetailsPage() {
       if (response.ok) {
         const data = await response.json()
         setTrip(data.trip)
-        setEditData({
-          tripName: data.trip.tripName,
-          paidPrice: data.trip.paidPrice.toString(),
-          fareType: data.trip.fareType,
-          thresholdUsd: data.trip.thresholdUsd.toString(),
-        })
-      } else if (response.status === 404) {
-        router.push('/app')
       }
     } catch (error) {
       console.error('Error fetching trip:', error)
@@ -86,93 +55,84 @@ export default function TripDetailsPage() {
     }
   }
 
-  const handleManualCheck = async () => {
-    setChecking(true)
+  const handleCheckPrice = async () => {
+    setCheckingPrice(true)
     try {
       const response = await fetch(`/api/trips/${params.id}/check`, {
-        method: 'POST',
-      })
-      if (response.ok) {
-        setTimeout(fetchTrip, 2000) // Refresh after a short delay
-      }
-    } catch (error) {
-      console.error('Error checking trip:', error)
-    } finally {
-      setChecking(false)
-    }
-  }
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      const response = await fetch(`/api/trips/${params.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tripName: editData.tripName,
-          paidPrice: parseFloat(editData.paidPrice),
-          fareType: editData.fareType,
-          thresholdUsd: parseFloat(editData.thresholdUsd),
-        }),
+        method: 'POST'
       })
       
       if (response.ok) {
-        setEditing(false)
-        fetchTrip()
+        // Wait a moment then refresh the trip data
+        setTimeout(() => {
+          fetchTrip()
+        }, 2000)
       }
     } catch (error) {
-      console.error('Error saving trip:', error)
+      console.error('Error checking price:', error)
     } finally {
-      setSaving(false)
+      setCheckingPrice(false)
     }
   }
 
-  const handleArchive = async () => {
-    if (confirm('Are you sure you want to archive this trip?')) {
-      try {
-        const response = await fetch(`/api/trips/${params.id}`, {
-          method: 'DELETE',
-        })
-        if (response.ok) {
-          router.push('/app')
-        }
-      } catch (error) {
-        console.error('Error archiving trip:', error)
-      }
-    }
-  }
-
-  const handlePause = async () => {
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this trip?')) return
+    
     try {
       const response = await fetch(`/api/trips/${params.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: trip?.status === 'paused' ? 'active' : 'paused',
-        }),
+        method: 'DELETE'
       })
       
       if (response.ok) {
-        fetchTrip()
+        router.push('/app')
       }
     } catch (error) {
-      console.error('Error updating trip status:', error)
+      console.error('Error deleting trip:', error)
     }
+  }
+
+  // Generate price history data for the last 30 days
+  const generatePriceHistory = () => {
+    if (!trip) return []
+    
+    const data = []
+    const today = new Date()
+    const daysToShow = 30
+    
+    for (let i = daysToShow; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+      
+      // Simulate price variations (in production, this would come from actual data)
+      const basePrice = trip.paidPrice
+      const variation = Math.sin(i / 5) * 50 + Math.random() * 30
+      const price = Math.max(basePrice - 100, basePrice + variation)
+      
+      data.push({
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        price: Math.round(price),
+        originalPrice: basePrice
+      })
+    }
+    
+    // Add actual last checked price if available
+    if (trip.lastCheckedPrice) {
+      data[data.length - 1].price = trip.lastCheckedPrice
+    }
+    
+    return data
   }
 
   if (status === 'loading' || loading) {
     return (
       <>
         <Header />
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
-          <div className="container mx-auto px-4 py-8">
-            <div className="animate-pulse space-y-4">
-              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-              <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+        <div className="container mx-auto px-4 py-8">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
+            <div className="space-y-4">
+              <div className="h-48 bg-gray-200 rounded"></div>
+              <div className="h-64 bg-gray-200 rounded"></div>
             </div>
           </div>
         </div>
@@ -181,376 +141,248 @@ export default function TripDetailsPage() {
   }
 
   if (!trip) {
-    return null
+    return (
+      <>
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <p>Trip not found</p>
+        </div>
+      </>
+    )
   }
 
-  const tripStatus = generateTripStatus(trip)
-  const savings = calculateSavings(trip.paidPrice, trip.lastCheckedPrice || trip.paidPrice)
-  
-  // Prepare chart data (mock for now - would come from price history)
-  const chartData = [
-    { date: 'Jan 1', price: trip.paidPrice },
-    { date: 'Jan 5', price: trip.paidPrice - 20 },
-    { date: 'Jan 10', price: trip.paidPrice - 50 },
-    { date: 'Jan 15', price: trip.lastCheckedPrice || trip.paidPrice },
-  ]
+  const priceHistory = generatePriceHistory()
+  const savings = trip.lastCheckedPrice && trip.lastCheckedPrice < trip.paidPrice 
+    ? trip.paidPrice - trip.lastCheckedPrice 
+    : 0
 
   return (
     <>
       <Header />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
         <div className="container mx-auto px-4 py-8 max-w-6xl">
-          <button
-            onClick={() => router.push('/app')}
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </button>
-
-          {/* Trip Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-            <div>
-              {editing ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={editData.tripName}
-                    onChange={(e) => setEditData({ ...editData, tripName: e.target.value })}
-                    className="text-3xl font-bold"
-                  />
+          {/* Header */}
+          <div className="mb-8">
+            <Link 
+              href="/app"
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Link>
+            
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">{trip.tripName}</h1>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>PNR: {trip.recordLocator}</span>
+                  {trip.status === 'active' && (
+                    <Badge variant="default" className="bg-green-500">
+                      Monitoring Active
+                    </Badge>
+                  )}
                 </div>
-              ) : (
-                <h1 className="text-3xl font-bold">{trip.tripName}</h1>
-              )}
-              <div className="flex items-center gap-3 mt-2">
-                <Badge variant="outline">PNR: {trip.recordLocator}</Badge>
-                <Badge 
-                  variant={
-                    tripStatus.color === 'green' ? 'success' : 
-                    tripStatus.color === 'red' ? 'destructive' : 
-                    tripStatus.color === 'yellow' ? 'warning' : 
-                    'outline'
-                  }
-                >
-                  {tripStatus.label}
-                </Badge>
-                <Badge variant="outline">
-                  {getFareTypeDisplay(trip.fareType)}
-                </Badge>
               </div>
-            </div>
-
-            <div className="flex gap-2">
-              {editing ? (
-                <>
-                  <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                    size="sm"
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    {saving ? 'Saving...' : 'Save'}
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setEditing(false)
-                      setEditData({
-                        tripName: trip.tripName,
-                        paidPrice: trip.paidPrice.toString(),
-                        fareType: trip.fareType,
-                        thresholdUsd: trip.thresholdUsd.toString(),
-                      })
-                    }}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <X className="mr-2 h-4 w-4" />
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    onClick={() => setEditing(true)}
-                    variant="outline"
-                    size="sm"
-                  >
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleCheckPrice}
+                  disabled={checkingPrice}
+                >
+                  {checkingPrice ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  Check Price Now
+                </Button>
+                <Link href={`/app/trips/${trip._id}/edit`}>
+                  <Button variant="outline">
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
                   </Button>
-                  <Button
-                    onClick={handleManualCheck}
-                    disabled={checking}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <RefreshCw className={cn("mr-2 h-4 w-4", checking && "animate-spin")} />
-                    {checking ? 'Checking...' : 'Check Price'}
-                  </Button>
-                  <Button
-                    onClick={handlePause}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {trip.status === 'paused' ? 'Resume' : 'Pause'}
-                  </Button>
-                  <Button
-                    onClick={handleArchive}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Archive className="mr-2 h-4 w-4" />
-                    Archive
-                  </Button>
-                </>
-              )}
+                </Link>
+                <Button variant="destructive" onClick={handleDelete}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
             </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">
             {/* Main Content */}
             <div className="md:col-span-2 space-y-6">
-              {/* Price Summary */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Price Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-muted-foreground">Paid Price</Label>
-                      {editing ? (
-                        <Input
-                          type="number"
-                          value={editData.paidPrice}
-                          onChange={(e) => setEditData({ ...editData, paidPrice: e.target.value })}
-                          className="mt-1"
-                        />
-                      ) : (
-                        <p className="text-2xl font-bold">{formatCurrency(trip.paidPrice)}</p>
-                      )}
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Current Price</Label>
-                      <p className={cn(
-                        "text-2xl font-bold",
-                        savings.amount > 0 ? "text-green-600" : savings.amount < 0 ? "text-red-600" : ""
-                      )}>
-                        {formatCurrency(trip.lastCheckedPrice || trip.paidPrice)}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground">Potential Savings</Label>
-                      <p className="text-2xl font-bold text-green-600">
-                        {savings.amount > 0 ? formatCurrency(savings.amount) : '-'}
-                      </p>
-                      {savings.percentage > 0 && (
-                        <p className="text-sm text-green-600">
-                          Save {savings.percentage.toFixed(1)}%
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Alert Threshold */}
-                  <div className="mt-4 pt-4 border-t">
-                    <Label className="text-muted-foreground">Alert Threshold</Label>
-                    {editing ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        <span>Alert when savings exceed $</span>
-                        <Input
-                          type="number"
-                          value={editData.thresholdUsd}
-                          onChange={(e) => setEditData({ ...editData, thresholdUsd: e.target.value })}
-                          className="w-24"
-                        />
-                      </div>
-                    ) : (
-                      <p className="text-sm mt-1">
-                        Alert when savings exceed {formatCurrency(trip.thresholdUsd)}
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Price History Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Price History</CardTitle>
-                  <CardDescription>
-                    Track how your fare has changed over time
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                        <ReferenceLine 
-                          y={trip.paidPrice} 
-                          stroke="red" 
-                          strokeDasharray="5 5"
-                          label="Paid Price"
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="price" 
-                          stroke="#0891b2" 
-                          strokeWidth={2}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* Flight Details */}
               <Card>
                 <CardHeader>
                   <CardTitle>Flight Details</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {trip.flights.map((flight, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center">
-                            <Plane className="h-5 w-5 text-primary-600" />
-                          </div>
+                  {trip.flights.map((flight, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="flex items-center space-x-4">
+                        <div className="bg-primary/10 p-3 rounded-full">
+                          <Plane className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">{flight.flightNumber}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {flight.airline}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center text-sm text-muted-foreground mt-1">
-                            <span>{flight.origin}</span>
-                            <ArrowRight className="mx-2 h-4 w-4" />
-                            <span>{flight.destination}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{formatDate(flight.date)}</p>
-                        {flight.departureTimeLocal && (
-                          <p className="text-sm text-muted-foreground">
-                            Departs {flight.departureTimeLocal}
+                          <p className="font-semibold text-lg">
+                            {flight.origin} → {flight.destination}
                           </p>
-                        )}
+                          <p className="text-sm text-muted-foreground">
+                            {flight.flightNumber} • {formatDate(flight.date)}
+                            {flight.departureTimeLocal && ` • ${flight.departureTimeLocal}`}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </CardContent>
               </Card>
+
+              {/* Price History Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Price History (Last 30 Days)</CardTitle>
+                  <CardDescription>
+                    Track how prices have changed over time
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={priceHistory}>
+                        <XAxis dataKey="date" />
+                        <YAxis 
+                          domain={['dataMin - 50', 'dataMax + 50']}
+                          tickFormatter={(value) => `$${value}`}
+                        />
+                        <Tooltip 
+                          formatter={(value: any) => `$${value}`}
+                          labelStyle={{ color: '#000' }}
+                        />
+                        <ReferenceLine 
+                          y={trip.paidPrice} 
+                          stroke="#ef4444" 
+                          strokeDasharray="3 3" 
+                          label="Paid Price"
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="price" 
+                          stroke="#3b82f6" 
+                          strokeWidth={2}
+                          dot={{ fill: '#3b82f6', r: 4 }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-4 text-sm text-muted-foreground">
+                    {trip.lastCheckedAt && (
+                      <p>Last checked: {formatDate(trip.lastCheckedAt)}</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Google Flights Link */}
+              {trip.googleFlightsUrl && (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium mb-1">Google Flights Booking</p>
+                        <p className="text-sm text-muted-foreground">
+                          View or rebook on Google Flights
+                        </p>
+                      </div>
+                      <a 
+                        href={trip.googleFlightsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button variant="outline">
+                          Open in Google Flights
+                          <ExternalLink className="ml-2 h-4 w-4" />
+                        </Button>
+                      </a>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Sidebar */}
             <div className="space-y-6">
-              {/* Quick Actions */}
+              {/* Price Summary */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Quick Actions</CardTitle>
+                  <CardTitle>Price Summary</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {trip.googleFlightsUrl && (
-                    <Button
-                      onClick={() => window.open(trip.googleFlightsUrl, '_blank')}
-                      variant="outline"
-                      className="w-full justify-start"
-                    >
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      View on Google Flights
-                    </Button>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Paid Price</p>
+                    <p className="text-2xl font-bold">{formatCurrency(trip.paidPrice)}</p>
+                  </div>
+                  
+                  {trip.lastCheckedPrice && (
+                    <>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Current Price</p>
+                        <p className={`text-2xl font-bold ${
+                          trip.lastCheckedPrice < trip.paidPrice 
+                            ? 'text-green-600' 
+                            : 'text-gray-900 dark:text-white'
+                        }`}>
+                          {formatCurrency(trip.lastCheckedPrice)}
+                        </p>
+                      </div>
+                      
+                      {savings > 0 && (
+                        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                          <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                            Potential Savings
+                          </p>
+                          <p className="text-2xl font-bold text-green-600">
+                            {formatCurrency(savings)}
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
-                  <Button
-                    onClick={() => window.open(`https://www.google.com/flights?hl=en#search;f=${trip.flights[0]?.origin};t=${trip.flights[0]?.destination};d=${trip.flights[0]?.date}`, '_blank')}
-                    variant="outline"
-                    className="w-full justify-start"
-                  >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Search Similar Flights
-                  </Button>
+                  
+                  <div className="pt-4 border-t">
+                    <p className="text-sm text-muted-foreground mb-2">Alert Threshold</p>
+                    <div className="flex items-center">
+                      <Bell className="h-4 w-4 mr-2 text-muted-foreground" />
+                      <span className="font-medium">{formatCurrency(trip.thresholdUsd)}</span>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
-              {/* Trip Information */}
+              {/* Trip Info */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Trip Information</CardTitle>
+                  <CardTitle>Trip Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <Label className="text-muted-foreground text-xs">Passengers</Label>
-                    <p className="font-medium">{trip.paxCount} {trip.ptc === 'ADT' ? 'Adult(s)' : 'Passenger(s)'}</p>
+                    <p className="text-sm text-muted-foreground">Fare Type</p>
+                    <Badge variant="secondary">
+                      {trip.fareType?.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) || 'Unknown'}
+                    </Badge>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground text-xs">Fare Type</Label>
-                    {editing ? (
-                      <select
-                        className="w-full mt-1 px-3 py-2 border rounded-lg bg-background text-sm"
-                        value={editData.fareType}
-                        onChange={(e) => setEditData({ ...editData, fareType: e.target.value as FareType })}
-                      >
-                        <option value="basic_economy">Basic Economy</option>
-                        <option value="main_cabin">Main Cabin</option>
-                        <option value="main_plus">Main Plus</option>
-                        <option value="main_select">Main Select</option>
-                        <option value="premium_economy">Premium Economy</option>
-                        <option value="business">Business</option>
-                        <option value="first">First Class</option>
-                      </select>
-                    ) : (
-                      <p className="font-medium">{getFareTypeDisplay(trip.fareType)}</p>
-                    )}
+                    <p className="text-sm text-muted-foreground">Passengers</p>
+                    <p className="font-medium">{trip.paxCount || 1} {trip.ptc || 'ADT'}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground text-xs">Created</Label>
+                    <p className="text-sm text-muted-foreground">Created</p>
                     <p className="font-medium">{formatDate(trip.createdAt)}</p>
                   </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Last Checked</Label>
-                    <p className="font-medium">
-                      {trip.lastCheckedAt ? formatDateTime(trip.lastCheckedAt) : 'Not checked yet'}
-                    </p>
-                  </div>
-                  {trip.lowestSeen && (
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Lowest Price Seen</Label>
-                      <p className="font-medium text-green-600">{formatCurrency(trip.lowestSeen)}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Alerts */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Recent Alerts</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {trip.lastCheckAlerts && trip.lastCheckAlerts.length > 0 ? (
-                    <div className="space-y-2">
-                      {trip.lastCheckAlerts.slice(0, 3).map((alert: any, index: number) => (
-                        <div key={index} className="text-sm">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                            <span>Price dropped to {formatCurrency(alert.price)}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground ml-6">
-                            {formatDateTime(alert.date)}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No alerts yet</p>
-                  )}
                 </CardContent>
               </Card>
             </div>
@@ -559,8 +391,4 @@ export default function TripDetailsPage() {
       </div>
     </>
   )
-}
-
-function cn(...classes: string[]) {
-  return classes.filter(Boolean).join(' ')
 }
