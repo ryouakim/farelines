@@ -1,10 +1,10 @@
 import { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import { MongoDBAdapter } from '@next-auth/mongodb-adapter'
-import { connectToDatabase } from '@/lib/mongodb'
+import clientPromise from '@/lib/mongodb-adapter'
 
 export const authOptions: NextAuthOptions = {
-  adapter: MongoDBAdapter(connectToDatabase as any),
+  adapter: MongoDBAdapter(clientPromise),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
