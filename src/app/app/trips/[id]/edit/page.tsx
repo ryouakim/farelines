@@ -8,15 +8,20 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import Link from 'next/link'
 import { 
   ArrowLeft,
   Plus,
   X,
-  AlertCircle,
   Link as LinkIcon,
+  AlertCircle,
   Plane,
   Save,
-  Trash2
+  Trash2,
+  ChevronRight,
+  Info,
+  RefreshCw
 } from 'lucide-react'
 import type { FareType, Trip } from '@/types/trip'
 
@@ -28,6 +33,40 @@ const fareTypes: { value: FareType; label: string }[] = [
   { value: 'premium_economy', label: 'Premium Economy' },
   { value: 'business', label: 'Business' },
   { value: 'first', label: 'First Class' },
+]
+
+const timezones = [
+  { value: '', label: 'Select timezone...' },
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Phoenix', label: 'Arizona Time' },
+  { value: 'America/Anchorage', label: 'Alaska Time' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
+  { value: 'Europe/London', label: 'London (GMT)' },
+  { value: 'Europe/Paris', label: 'Paris/Berlin (CET)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEDT)' },
+]
+
+const commonAirlines = [
+  { code: 'AA', name: 'American Airlines' },
+  { code: 'DL', name: 'Delta Air Lines' },
+  { code: 'UA', name: 'United Airlines' },
+  { code: 'WN', name: 'Southwest Airlines' },
+  { code: 'B6', name: 'JetBlue Airways' },
+  { code: 'AS', name: 'Alaska Airlines' },
+  { code: 'NK', name: 'Spirit Airlines' },
+  { code: 'F9', name: 'Frontier Airlines' },
+  { code: 'G4', name: 'Allegiant Air' },
+  { code: 'SY', name: 'Sun Country Airlines' },
+  { code: 'AC', name: 'Air Canada' },
+  { code: 'BA', name: 'British Airways' },
+  { code: 'LH', name: 'Lufthansa' },
+  { code: 'AF', name: 'Air France' },
 ]
 
 interface Flight {
@@ -43,10 +82,12 @@ export default function EditTripPage() {
   const router = useRouter()
   const params = useParams()
   const { status } = useSession()
-  const isEditMode = params?.id && params.id !== 'new'
   
   const [loading, setLoading] = useState(false)
+  const [fetchingTrip, setFetchingTrip] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [fieldTouched, setFieldTouched] = useState<Record<string, boolean>>({})
+  const [originalTrip, setOriginalTrip] = useState<Trip | null>(null)
   
   // Form data
   const [tripName, setTripName] = useState('')
@@ -69,19 +110,19 @@ export default function EditTripPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/signin')
-    }
-    
-    if (isEditMode) {
+    } else if (status === 'authenticated' && params.id) {
       fetchTrip()
     }
-  }, [status, router, isEditMode])
+  }, [status, router, params.id])
 
   const fetchTrip = async () => {
+    setFetchingTrip(true)
     try {
       const response = await fetch(`/api/trips/${params.id}`)
       if (response.ok) {
         const data = await response.json()
         const trip = data.trip
+        setOriginalTrip(trip)
         
         // Populate form with existing data
         setTripName(trip.tripName || '')
@@ -94,11 +135,62 @@ export default function EditTripPage() {
         setPtc(trip.ptc || 'ADT')
         
         if (trip.flights && trip.flights.length > 0) {
-          setFlights(trip.flights)
+          setFlights(trip.flights.map((f: any) => ({
+            flightNumber: f.flightNumber || '',
+            date: f.date || '',
+            origin: f.origin || '',
+            destination: f.destination || '',
+            departureTimeLocal: f.departureTimeLocal || '',
+            departureTz: f.departureTz || ''
+          })))
         }
+      } else {
+        setErrors({ general: 'Trip not found' })
+        router.push('/app')
       }
     } catch (error) {
       console.error('Error fetching trip:', error)
+      setErrors({ general: 'Failed to load trip' })
+    } finally {
+      setFetchingTrip(false)
+    }
+  }
+
+  // Validation
+  const validateField = (field: string, value: any) => {
+    const newErrors = { ...errors }
+    
+    switch (field) {
+      case 'recordLocator':
+        if (value.length !== 6) {
+          newErrors.recordLocator = 'PNR must be 6 characters'
+        } else {
+          delete newErrors.recordLocator
+        }
+        break
+      case 'paidPrice':
+        if (!value || parseFloat(value) <= 0) {
+          newErrors.paidPrice = 'Price must be greater than 0'
+        } else {
+          delete newErrors.paidPrice
+        }
+        break
+      case 'tripName':
+        if (!value || value.trim().length < 3) {
+          newErrors.tripName = 'Trip name must be at least 3 characters'
+        } else {
+          delete newErrors.tripName
+        }
+        break
+    }
+    
+    setErrors(newErrors)
+  }
+
+  const handleFieldChange = (field: string, value: any, validate = true) => {
+    setFieldTouched({ ...fieldTouched, [field]: true })
+    if (validate && fieldTouched[field]) {
+      validateField(field, value)
     }
   }
 
@@ -122,6 +214,17 @@ export default function EditTripPage() {
   const updateFlight = (index: number, field: keyof Flight, value: string) => {
     const updated = [...flights]
     updated[index] = { ...updated[index], [field]: value }
+    
+    // Auto-advance for IATA codes
+    if ((field === 'origin' || field === 'destination') && value.length === 3) {
+      const nextInput = document.querySelector(
+        `input[name="flight-${index}-${field === 'origin' ? 'destination' : 'next'}"]`
+      ) as HTMLInputElement
+      if (nextInput) {
+        nextInput.focus()
+      }
+    }
+    
     setFlights(updated)
   }
 
@@ -150,6 +253,16 @@ export default function EditTripPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate all fields
+    validateField('tripName', tripName)
+    validateField('recordLocator', recordLocator)
+    validateField('paidPrice', paidPrice)
+    
+    if (Object.keys(errors).length > 0) {
+      return
+    }
+    
     setLoading(true)
     setErrors({})
 
@@ -166,14 +279,8 @@ export default function EditTripPage() {
         flights: flights.filter(f => f.flightNumber && f.date && f.origin && f.destination)
       }
 
-      const url = isEditMode 
-        ? `/api/trips/${params.id}`
-        : '/api/trips'
-      
-      const method = isEditMode ? 'PATCH' : 'POST'
-
-      const response = await fetch(url, {
-        method,
+      const response = await fetch(`/api/trips/${params.id}`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -183,98 +290,139 @@ export default function EditTripPage() {
       const data = await response.json()
 
       if (response.ok) {
-        router.push('/app')
+        router.push(`/app/trips/${params.id}`)
       } else {
         setErrors(data.fieldErrors || { general: data.error })
       }
     } catch (error) {
-      setErrors({ general: 'Failed to save trip. Please try again.' })
+      setErrors({ general: 'Failed to update trip. Please try again.' })
     } finally {
       setLoading(false)
     }
   }
 
-  if (status === 'loading') {
-    return <div>Loading...</div>
+  if (status === 'loading' || fetchingTrip) {
+    return (
+      <>
+        <Header />
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <Skeleton className="h-8 w-48 mb-6" />
+          <Skeleton className="h-10 w-64 mb-2" />
+          <Skeleton className="h-6 w-96 mb-8" />
+          <div className="space-y-6">
+            <Skeleton className="h-64" />
+            <Skeleton className="h-96" />
+          </div>
+        </div>
+      </>
+    )
   }
 
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
+      <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </button>
+          {/* Breadcrumbs */}
+          <nav className="text-sm mb-6">
+            <ol className="flex items-center space-x-2">
+              <li><Link href="/" className="text-muted-foreground hover:text-foreground">Home</Link></li>
+              <li><ChevronRight className="h-4 w-4 text-muted-foreground" /></li>
+              <li><Link href="/app" className="text-muted-foreground hover:text-foreground">Dashboard</Link></li>
+              <li><ChevronRight className="h-4 w-4 text-muted-foreground" /></li>
+              {originalTrip && (
+                <>
+                  <li>
+                    <Link 
+                      href={`/app/trips/${params.id}`} 
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      {originalTrip.tripName}
+                    </Link>
+                  </li>
+                  <li><ChevronRight className="h-4 w-4 text-muted-foreground" /></li>
+                </>
+              )}
+              <li className="text-foreground font-medium">Edit</li>
+            </ol>
+          </nav>
 
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold">
-                {isEditMode ? 'Edit Trip' : 'Add New Trip'}
-              </h1>
-              <p className="text-muted-foreground">
-                {isEditMode ? 'Update your trip details' : 'Enter your flight information'}
+              <h1 className="text-3xl font-bold">Edit Trip</h1>
+              <p className="text-muted-foreground mt-1">
+                Update your trip information and flight details
               </p>
             </div>
             
-            {isEditMode && (
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={loading}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Trip
-              </Button>
-            )}
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={loading}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Trip
+            </Button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Trip Information</CardTitle>
+                <CardDescription>Update the basic details of your trip</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="tripName">Trip Name</Label>
+                    <Label htmlFor="tripName">Trip Name *</Label>
                     <Input
                       id="tripName"
                       placeholder="e.g., Summer Vacation 2024"
                       value={tripName}
-                      onChange={(e) => setTripName(e.target.value)}
+                      onChange={(e) => {
+                        setTripName(e.target.value)
+                        handleFieldChange('tripName', e.target.value)
+                      }}
+                      onBlur={() => validateField('tripName', tripName)}
                       required
+                      className={errors.tripName ? 'border-destructive' : ''}
                     />
-                    {errors.tripName && (
-                      <p className="text-sm text-red-500 mt-1">{errors.tripName}</p>
+                    {fieldTouched.tripName && errors.tripName && (
+                      <p className="text-sm text-destructive mt-1">{errors.tripName}</p>
                     )}
                   </div>
                   
                   <div>
-                    <Label htmlFor="pnr">Record Locator (PNR)</Label>
+                    <Label htmlFor="pnr">Record Locator (PNR) *</Label>
                     <Input
                       id="pnr"
-                      placeholder="6-character code"
+                      placeholder="6-character code (e.g., ABC123)"
                       value={recordLocator}
-                      onChange={(e) => setRecordLocator(e.target.value.toUpperCase())}
+                      onChange={(e) => {
+                        const value = e.target.value.toUpperCase().slice(0, 6)
+                        setRecordLocator(value)
+                        handleFieldChange('recordLocator', value)
+                      }}
+                      onBlur={() => validateField('recordLocator', recordLocator)}
                       maxLength={6}
                       required
+                      className={errors.recordLocator ? 'border-destructive' : ''}
                     />
-                    {errors.recordLocator && (
-                      <p className="text-sm text-red-500 mt-1">{errors.recordLocator}</p>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {fieldTouched.recordLocator && errors.recordLocator && (
+                        <p className="text-sm text-destructive">{errors.recordLocator}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground ml-auto">
+                        {recordLocator.length}/6
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 <div>
                   <Label htmlFor="googleUrl">
                     Google Flights URL 
-                    <span className="text-muted-foreground text-xs ml-2">(Optional but recommended)</span>
+                    <span className="text-muted-foreground text-xs ml-2">(Recommended for accurate tracking)</span>
                   </Label>
                   <div className="relative">
                     <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -286,21 +434,37 @@ export default function EditTripPage() {
                       className="pl-10"
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
+                    <Info className="h-3 w-3 mt-0.5" />
+                    This helps us track the exact fare type and route for accurate price monitoring
+                  </p>
                 </div>
 
                 <div className="grid md:grid-cols-4 gap-4">
                   <div>
-                    <Label htmlFor="paidPrice">Price Paid (USD)</Label>
-                    <Input
-                      id="paidPrice"
-                      type="number"
-                      placeholder="499"
-                      value={paidPrice}
-                      onChange={(e) => setPaidPrice(e.target.value)}
-                      min="0"
-                      step="0.01"
-                      required
-                    />
+                    <Label htmlFor="paidPrice">Price Paid *</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="paidPrice"
+                        type="number"
+                        placeholder="499.99"
+                        value={paidPrice}
+                        onChange={(e) => {
+                          setPaidPrice(e.target.value)
+                          handleFieldChange('paidPrice', e.target.value)
+                        }}
+                        onBlur={() => validateField('paidPrice', paidPrice)}
+                        className={`pl-8 ${errors.paidPrice ? 'border-destructive' : ''}`}
+                        min="0"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                    {fieldTouched.paidPrice && errors.paidPrice && (
+                      <p className="text-sm text-destructive mt-1">{errors.paidPrice}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">Total in USD</p>
                   </div>
                   
                   <div>
@@ -332,26 +496,33 @@ export default function EditTripPage() {
                   </div>
                   
                   <div>
-                    <Label htmlFor="threshold">Alert Threshold ($)</Label>
-                    <Input
-                      id="threshold"
-                      type="number"
-                      placeholder="50"
-                      value={thresholdUsd}
-                      onChange={(e) => setThresholdUsd(e.target.value)}
-                      min="1"
-                      step="1"
-                    />
+                    <Label htmlFor="threshold">Alert Threshold</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <Input
+                        id="threshold"
+                        type="number"
+                        placeholder="50"
+                        value={thresholdUsd}
+                        onChange={(e) => setThresholdUsd(e.target.value)}
+                        className="pl-8"
+                        min="1"
+                        step="1"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Min. savings</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Flight Details */}
             <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
-                  <CardTitle>Flight Details</CardTitle>
+                  <div>
+                    <CardTitle>Flight Details</CardTitle>
+                    <CardDescription>Update all flight segments for this trip</CardDescription>
+                  </div>
                   <Button
                     type="button"
                     onClick={addFlight}
@@ -365,101 +536,136 @@ export default function EditTripPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {flights.map((flight, index) => (
-                  <div key={index} className="p-4 border rounded-lg space-y-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="font-medium flex items-center">
-                        <Plane className="mr-2 h-4 w-4" />
-                        Flight {index + 1}
-                      </h4>
-                      {flights.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeFlight(index)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                    
-                    <div className="grid md:grid-cols-2 gap-3">
-                      <div>
-                        <Label>Flight Number</Label>
-                        <Input
-                          placeholder="e.g., AA 1234"
-                          value={flight.flightNumber}
-                          onChange={(e) => updateFlight(index, 'flightNumber', e.target.value.toUpperCase())}
-                          required
-                        />
+                  <Card key={index} className="border-muted">
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-medium flex items-center">
+                          <Plane className="mr-2 h-4 w-4" />
+                          Flight {index + 1}
+                        </h4>
+                        {flights.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeFlight(index)}
+                            className="h-8 w-8"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-                      <div>
-                        <Label>Date</Label>
-                        <Input
-                          type="date"
-                          value={flight.date}
-                          onChange={(e) => updateFlight(index, 'date', e.target.value)}
-                          required
-                        />
+                      
+                      <div className="grid md:grid-cols-2 gap-3 mb-3">
+                        <div>
+                          <Label>Flight Number *</Label>
+                          <div className="flex gap-2">
+                            <select
+                              className="w-24 h-10 px-2 rounded-lg border border-input bg-background text-sm"
+                              value={flight.flightNumber.split(' ')[0]}
+                              onChange={(e) => {
+                                const number = flight.flightNumber.split(' ')[1] || ''
+                                updateFlight(index, 'flightNumber', `${e.target.value} ${number}`)
+                              }}
+                            >
+                              <option value="">Airline</option>
+                              {commonAirlines.map(airline => (
+                                <option key={airline.code} value={airline.code}>
+                                  {airline.code}
+                                </option>
+                              ))}
+                            </select>
+                            <Input
+                              placeholder="Flight # (e.g., 1234)"
+                              value={flight.flightNumber.split(' ')[1] || ''}
+                              onChange={(e) => {
+                                const airline = flight.flightNumber.split(' ')[0] || ''
+                                updateFlight(index, 'flightNumber', `${airline} ${e.target.value}`)
+                              }}
+                              required
+                              className="flex-1"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label>Date *</Label>
+                          <Input
+                            type="date"
+                            value={flight.date}
+                            onChange={(e) => updateFlight(index, 'date', e.target.value)}
+                            required
+                          />
+                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="grid md:grid-cols-4 gap-3">
-                      <div>
-                        <Label>Origin (IATA)</Label>
-                        <Input
-                          placeholder="JFK"
-                          value={flight.origin}
-                          onChange={(e) => updateFlight(index, 'origin', e.target.value.toUpperCase())}
-                          maxLength={3}
-                          required
-                        />
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <Label>From (IATA) *</Label>
+                          <Input
+                            placeholder="CLT"
+                            name={`flight-${index}-origin`}
+                            value={flight.origin}
+                            onChange={(e) => updateFlight(index, 'origin', e.target.value.toUpperCase())}
+                            maxLength={3}
+                            required
+                            className="text-center font-mono"
+                          />
+                        </div>
+                        <div>
+                          <Label>To (IATA) *</Label>
+                          <Input
+                            placeholder="LAX"
+                            name={`flight-${index}-destination`}
+                            value={flight.destination}
+                            onChange={(e) => updateFlight(index, 'destination', e.target.value.toUpperCase())}
+                            maxLength={3}
+                            required
+                            className="text-center font-mono"
+                          />
+                        </div>
+                        <div>
+                          <Label>Time</Label>
+                          <Input
+                            type="time"
+                            value={flight.departureTimeLocal}
+                            onChange={(e) => updateFlight(index, 'departureTimeLocal', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <Label>Timezone</Label>
+                          <select
+                            className="w-full h-10 px-2 rounded-lg border border-input bg-background text-sm"
+                            value={flight.departureTz}
+                            onChange={(e) => updateFlight(index, 'departureTz', e.target.value)}
+                          >
+                            {timezones.map(tz => (
+                              <option key={tz.value} value={tz.value}>
+                                {tz.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                      <div>
-                        <Label>Destination (IATA)</Label>
-                        <Input
-                          placeholder="LAX"
-                          value={flight.destination}
-                          onChange={(e) => updateFlight(index, 'destination', e.target.value.toUpperCase())}
-                          maxLength={3}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label>Departure Time</Label>
-                        <Input
-                          type="time"
-                          value={flight.departureTimeLocal}
-                          onChange={(e) => updateFlight(index, 'departureTimeLocal', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Timezone</Label>
-                        <Input
-                          placeholder="America/New_York"
-                          value={flight.departureTz}
-                          onChange={(e) => updateFlight(index, 'departureTz', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </CardContent>
             </Card>
 
             {errors.general && (
-              <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
                 <div className="flex items-center space-x-2">
-                  <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                  <p className="text-sm text-red-800 dark:text-red-200">{errors.general}</p>
+                  <AlertCircle className="h-5 w-5 text-destructive" />
+                  <p className="text-sm text-destructive">{errors.general}</p>
                 </div>
               </div>
             )}
 
-            <div className="flex gap-4">
+            <div className="flex gap-4 pt-4">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => router.back()}
+                onClick={() => router.push(`/app/trips/${params.id}`)}
                 disabled={loading}
               >
                 Cancel
@@ -469,8 +675,17 @@ export default function EditTripPage() {
                 disabled={loading}
                 className="flex-1"
               >
-                <Save className="mr-2 h-4 w-4" />
-                {loading ? 'Saving...' : (isEditMode ? 'Update Trip' : 'Create Trip')}
+                {loading ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Update Trip
+                  </>
+                )}
               </Button>
             </div>
           </form>

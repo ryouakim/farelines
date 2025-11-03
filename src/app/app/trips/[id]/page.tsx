@@ -8,6 +8,7 @@ import { Header } from '@/components/layout/header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { 
   ArrowLeft,
   Plane,
@@ -19,7 +20,11 @@ import {
   Trash2,
   ExternalLink,
   RefreshCw,
-  Bell
+  Bell,
+  ChevronRight,
+  Download,
+  FileText,
+  Users
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Trip } from '@/types/trip'
@@ -91,6 +96,26 @@ export default function TripDetailsPage() {
     }
   }
 
+  const exportTrip = () => {
+    if (!trip) return
+    
+    const data = {
+      tripName: trip.tripName,
+      recordLocator: trip.recordLocator,
+      flights: trip.flights,
+      paidPrice: trip.paidPrice,
+      fareType: trip.fareType,
+      exportDate: new Date().toISOString()
+    }
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `trip-${trip.recordLocator}-${Date.now()}.json`
+    a.click()
+  }
+
   // Generate price history data for the last 30 days
   const generatePriceHistory = () => {
     if (!trip) return []
@@ -99,11 +124,12 @@ export default function TripDetailsPage() {
     const today = new Date()
     const daysToShow = 30
     
+    // This would come from actual historical data in production
     for (let i = daysToShow; i >= 0; i--) {
       const date = new Date(today)
       date.setDate(date.getDate() - i)
       
-      // Simulate price variations (in production, this would come from actual data)
+      // Simulate price variations (replace with actual data)
       const basePrice = trip.paidPrice
       const variation = Math.sin(i / 5) * 50 + Math.random() * 30
       const price = Math.max(basePrice - 100, basePrice + variation)
@@ -127,12 +153,16 @@ export default function TripDetailsPage() {
     return (
       <>
         <Header />
-        <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-            <div className="space-y-4">
-              <div className="h-48 bg-gray-200 rounded"></div>
-              <div className="h-64 bg-gray-200 rounded"></div>
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <Skeleton className="h-8 w-48 mb-6" />
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-6">
+              <Skeleton className="h-48" />
+              <Skeleton className="h-64" />
+            </div>
+            <div className="space-y-6">
+              <Skeleton className="h-64" />
+              <Skeleton className="h-48" />
             </div>
           </div>
         </div>
@@ -145,7 +175,14 @@ export default function TripDetailsPage() {
       <>
         <Header />
         <div className="container mx-auto px-4 py-8">
-          <p>Trip not found</p>
+          <Card>
+            <CardContent className="text-center py-12">
+              <p className="text-muted-foreground mb-4">Trip not found</p>
+              <Link href="/app">
+                <Button variant="outline">Return to Dashboard</Button>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
       </>
     )
@@ -159,34 +196,53 @@ export default function TripDetailsPage() {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
+      <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-6xl">
+          {/* Breadcrumbs */}
+          <nav className="text-sm mb-6">
+            <ol className="flex items-center space-x-2">
+              <li><Link href="/" className="text-muted-foreground hover:text-foreground">Home</Link></li>
+              <li><ChevronRight className="h-4 w-4 text-muted-foreground" /></li>
+              <li><Link href="/app" className="text-muted-foreground hover:text-foreground">Dashboard</Link></li>
+              <li><ChevronRight className="h-4 w-4 text-muted-foreground" /></li>
+              <li className="text-foreground font-medium">Trip Details</li>
+            </ol>
+          </nav>
+          
           {/* Header */}
           <div className="mb-8">
-            <Link 
-              href="/app"
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
-            </Link>
-            
-            <div className="flex justify-between items-start">
+            <div className="flex flex-col lg:flex-row justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold mb-2">{trip.tripName}</h1>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span>PNR: {trip.recordLocator}</span>
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="text-muted-foreground">PNR: <span className="font-mono font-medium text-foreground">{trip.recordLocator}</span></span>
                   {trip.status === 'active' && (
-                    <Badge variant="default" className="bg-green-500">
+                    <Badge variant="default" className="bg-green-500 text-white">
+                      <Clock className="mr-1 h-3 w-3" />
                       Monitoring Active
+                    </Badge>
+                  )}
+                  {trip.paxCount && trip.paxCount > 1 && (
+                    <Badge variant="outline">
+                      <Users className="mr-1 h-3 w-3" />
+                      {trip.paxCount} Passengers
                     </Badge>
                   )}
                 </div>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
+                  size="sm"
+                  onClick={exportTrip}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={handleCheckPrice}
                   disabled={checkingPrice}
                 >
@@ -195,15 +251,19 @@ export default function TripDetailsPage() {
                   ) : (
                     <RefreshCw className="mr-2 h-4 w-4" />
                   )}
-                  Check Price Now
+                  Check Price
                 </Button>
                 <Link href={`/app/trips/${trip._id}/edit`}>
-                  <Button variant="outline">
+                  <Button variant="outline" size="sm">
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
                   </Button>
                 </Link>
-                <Button variant="destructive" onClick={handleDelete}>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={handleDelete}
+                >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
                 </Button>
@@ -211,31 +271,47 @@ export default function TripDetailsPage() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid lg:grid-cols-3 gap-6">
             {/* Main Content */}
-            <div className="md:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-6">
               {/* Flight Details */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Flight Details</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Plane className="h-5 w-5" />
+                    Flight Details
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3">
                   {trip.flights.map((flight, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="bg-primary/10 p-3 rounded-full">
+                    <div 
+                      key={idx} 
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted/70 transition-colors"
+                    >
+                      <div className="flex items-start sm:items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                           <Plane className="h-6 w-6 text-primary" />
                         </div>
                         <div>
-                          <p className="font-semibold text-lg">
+                          <p className="font-semibold text-lg text-foreground">
                             {flight.origin} → {flight.destination}
                           </p>
-                          <p className="text-sm text-muted-foreground">
-                            {flight.flightNumber} • {formatDate(flight.date)}
-                            {flight.departureTimeLocal && ` • ${flight.departureTimeLocal}`}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mt-1">
+                            <span className="font-medium">{flight.flightNumber}</span>
+                            <span>•</span>
+                            <span>{formatDate(flight.date)}</span>
+                            {flight.departureTimeLocal && (
+                              <>
+                                <span>•</span>
+                                <span>{flight.departureTimeLocal}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      <Badge variant="outline" className="mt-2 sm:mt-0">
+                        Flight {idx + 1}
+                      </Badge>
                     </div>
                   ))}
                 </CardContent>
@@ -244,46 +320,57 @@ export default function TripDetailsPage() {
               {/* Price History Chart */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Price History (Last 30 Days)</CardTitle>
+                  <CardTitle>Price History</CardTitle>
                   <CardDescription>
-                    Track how prices have changed over time
+                    Last 30 days price trend
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-64">
+                  <div className="h-64 -mx-2">
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={priceHistory}>
-                        <XAxis dataKey="date" />
+                      <LineChart data={priceHistory} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 12 }}
+                          stroke="hsl(var(--muted-foreground))"
+                        />
                         <YAxis 
                           domain={['dataMin - 50', 'dataMax + 50']}
                           tickFormatter={(value) => `$${value}`}
+                          tick={{ fontSize: 12 }}
+                          stroke="hsl(var(--muted-foreground))"
                         />
                         <Tooltip 
                           formatter={(value: any) => `$${value}`}
-                          labelStyle={{ color: '#000' }}
+                          contentStyle={{ 
+                            backgroundColor: 'hsl(var(--background))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '6px'
+                          }}
                         />
                         <ReferenceLine 
                           y={trip.paidPrice} 
-                          stroke="#ef4444" 
+                          stroke="hsl(var(--destructive))" 
                           strokeDasharray="3 3" 
-                          label="Paid Price"
+                          label={{ value: "Paid Price", position: "left", fontSize: 12 }}
                         />
                         <Line 
                           type="monotone" 
                           dataKey="price" 
-                          stroke="#3b82f6" 
+                          stroke="hsl(var(--primary))" 
                           strokeWidth={2}
-                          dot={{ fill: '#3b82f6', r: 4 }}
-                          activeDot={{ r: 6 }}
+                          dot={{ fill: 'hsl(var(--primary))', r: 3 }}
+                          activeDot={{ r: 5 }}
                         />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    {trip.lastCheckedAt && (
-                      <p>Last checked: {formatDate(trip.lastCheckedAt)}</p>
-                    )}
-                  </div>
+                  {trip.lastCheckedAt && (
+                    <p className="text-sm text-muted-foreground mt-4 flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Last checked: {formatDate(trip.lastCheckedAt)}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -291,27 +378,47 @@ export default function TripDetailsPage() {
               {trip.googleFlightsUrl && (
                 <Card>
                   <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium mb-1">Google Flights Booking</p>
-                        <p className="text-sm text-muted-foreground">
-                          View or rebook on Google Flights
-                        </p>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                          <ExternalLink className="h-5 w-5 text-blue-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">Google Flights Booking</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            View or rebook this trip on Google Flights
+                          </p>
+                        </div>
                       </div>
                       <a 
                         href={trip.googleFlightsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        <Button variant="outline">
+                        <Button variant="outline" size="sm">
                           Open in Google Flights
-                          <ExternalLink className="ml-2 h-4 w-4" />
+                          <ExternalLink className="ml-2 h-3 w-3" />
                         </Button>
                       </a>
                     </div>
                   </CardContent>
                 </Card>
               )}
+
+              {/* Notes Section (Future Feature) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Notes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Trip notes will be available in a future update
+                  </p>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Sidebar */}
@@ -319,34 +426,43 @@ export default function TripDetailsPage() {
               {/* Price Summary */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Price Summary</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Price Summary
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Paid Price</p>
-                    <p className="text-2xl font-bold">{formatCurrency(trip.paidPrice)}</p>
+                    <p className="text-2xl font-bold text-foreground">{formatCurrency(trip.paidPrice)}</p>
                   </div>
                   
                   {trip.lastCheckedPrice && (
                     <>
-                      <div>
+                      <div className="pt-3 border-t">
                         <p className="text-sm text-muted-foreground">Current Price</p>
                         <p className={`text-2xl font-bold ${
                           trip.lastCheckedPrice < trip.paidPrice 
                             ? 'text-green-600' 
-                            : 'text-gray-900 dark:text-white'
+                            : 'text-foreground'
                         }`}>
                           {formatCurrency(trip.lastCheckedPrice)}
                         </p>
                       </div>
                       
                       {savings > 0 && (
-                        <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                          <p className="text-sm font-medium text-green-800 dark:text-green-300">
-                            Potential Savings
-                          </p>
+                        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                          <div className="flex items-center gap-2 mb-1">
+                            <TrendingDown className="h-4 w-4 text-green-600" />
+                            <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                              Potential Savings
+                            </p>
+                          </div>
                           <p className="text-2xl font-bold text-green-600">
                             {formatCurrency(savings)}
+                          </p>
+                          <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+                            {Math.round((savings / trip.paidPrice) * 100)}% off original price
                           </p>
                         </div>
                       )}
@@ -354,10 +470,14 @@ export default function TripDetailsPage() {
                   )}
                   
                   <div className="pt-4 border-t">
-                    <p className="text-sm text-muted-foreground mb-2">Alert Threshold</p>
-                    <div className="flex items-center">
-                      <Bell className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span className="font-medium">{formatCurrency(trip.thresholdUsd)}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Bell className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Alert Threshold</span>
+                      </div>
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(trip.thresholdUsd)}
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -368,21 +488,80 @@ export default function TripDetailsPage() {
                 <CardHeader>
                   <CardTitle>Trip Information</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Fare Type</p>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Fare Type</span>
                     <Badge variant="secondary">
                       {trip.fareType?.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()) || 'Unknown'}
                     </Badge>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Passengers</p>
-                    <p className="font-medium">{trip.paxCount || 1} {trip.ptc || 'ADT'}</p>
+                  
+                  {trip.paxCount && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Passengers</span>
+                      <span className="font-medium text-foreground">
+                        {trip.paxCount} {trip.ptc || 'ADT'}
+                      </span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <Badge variant={trip.status === 'active' ? 'default' : 'secondary'}>
+                      {trip.status === 'active' ? 'Monitoring' : 'Inactive'}
+                    </Badge>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Created</p>
-                    <p className="font-medium">{formatDate(trip.createdAt)}</p>
+                  
+                  <div className="pt-3 border-t">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Created</span>
+                      <span className="text-sm text-foreground">{formatDate(trip.createdAt)}</span>
+                    </div>
                   </div>
+                  
+                  {trip.updatedAt && trip.updatedAt !== trip.createdAt && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Updated</span>
+                      <span className="text-sm text-foreground">{formatDate(trip.updatedAt)}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button 
+                    className="w-full justify-start" 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/app/trips/${trip._id}/edit`)}
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Trip Details
+                  </Button>
+                  <Button 
+                    className="w-full justify-start" 
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCheckPrice}
+                    disabled={checkingPrice}
+                  >
+                    <RefreshCw className={`mr-2 h-4 w-4 ${checkingPrice ? 'animate-spin' : ''}`} />
+                    Check Current Price
+                  </Button>
+                  <Button 
+                    className="w-full justify-start" 
+                    variant="outline"
+                    size="sm"
+                    onClick={exportTrip}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export Trip Data
+                  </Button>
                 </CardContent>
               </Card>
             </div>
