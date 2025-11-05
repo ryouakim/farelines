@@ -451,20 +451,20 @@ export default function TripDetailsPage() {
                       </div>
                       
                       {savings > 0 && (
-                        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                          <div className="flex items-center gap-2 mb-1">
-                            <TrendingDown className="h-4 w-4 text-green-600" />
-                            <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-                              Potential Savings
-                            </p>
-                          </div>
-                          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                            {formatCurrency(savings)}
-                          </p>
-                          <p className="text-xs text-emerald-900 dark:text-emerald-100 mt-1">
-                            {Math.round((savings / trip.paidPrice) * 100)}% off original price
+                       <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                        <div className="flex items-center gap-2 mb-1">
+                          <TrendingDown className="h-4 w-4 text-green-600" />
+                          <p className="text-sm font-medium text-black dark:text-white">
+                            Potential Savings
                           </p>
                         </div>
+                        <p className="text-2xl font-bold text-black dark:text-white">
+                          {formatCurrency(savings)}
+                        </p>
+                        <p className="text-xs text-black dark:text-white mt-1">
+                          {Math.round((savings / trip.paidPrice) * 100)}% off original price
+                        </p>
+                      </div>
                       )}
                     </>
                   )}
