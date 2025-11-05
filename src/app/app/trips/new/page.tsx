@@ -32,6 +32,35 @@ const fareTypes: { value: FareType; label: string }[] = [
   { value: 'first', label: 'First Class' },
 ]
 
+const commonAirlines = [
+  { code: '', name: 'Select Airline...' },
+  { code: 'AA', name: 'American Airlines (AA)' },
+  { code: 'DL', name: 'Delta Air Lines (DL)' },
+  { code: 'UA', name: 'United Airlines (UA)' },
+  { code: 'WN', name: 'Southwest Airlines (WN)' },
+  { code: 'B6', name: 'JetBlue Airways (B6)' },
+  { code: 'AS', name: 'Alaska Airlines (AS)' },
+  { code: 'NK', name: 'Spirit Airlines (NK)' },
+  { code: 'F9', name: 'Frontier Airlines (F9)' },
+  { code: 'G4', name: 'Allegiant Air (G4)' },
+  { code: 'SY', name: 'Sun Country Airlines (SY)' },
+  { code: 'AC', name: 'Air Canada (AC)' },
+  { code: 'BA', name: 'British Airways (BA)' },
+  { code: 'LH', name: 'Lufthansa (LH)' },
+  { code: 'AF', name: 'Air France (AF)' },
+  { code: 'KL', name: 'KLM Royal Dutch Airlines (KL)' },
+  { code: 'EK', name: 'Emirates (EK)' },
+  { code: 'QR', name: 'Qatar Airways (QR)' },
+  { code: 'SQ', name: 'Singapore Airlines (SQ)' },
+  { code: 'CX', name: 'Cathay Pacific (CX)' },
+  { code: 'JL', name: 'Japan Airlines (JL)' },
+  { code: 'NH', name: 'All Nippon Airways (NH)' },
+  { code: 'QF', name: 'Qantas (QF)' },
+  { code: 'EY', name: 'Etihad Airways (EY)' },
+  { code: 'TK', name: 'Turkish Airlines (TK)' },
+  { code: 'LX', name: 'SWISS (LX)' },
+]
+
 interface Flight {
   flightNumber: string
   date: string
@@ -425,13 +454,34 @@ export default function AddTripPage() {
                         
                         <div className="grid md:grid-cols-2 gap-3">
                           <div>
-                            <Label>Flight Number</Label>
-                            <Input
-                              placeholder="e.g., AA 1234"
-                              value={flight.flightNumber}
-                              onChange={(e) => updateFlight(index, 'flightNumber', e.target.value.toUpperCase())}
-                              required
-                            />
+                            <Label>Flight Number *</Label>
+                            <div className="flex gap-2">
+                              <select
+                                className="w-[180px] h-10 px-2 rounded-lg border border-input bg-background text-sm"
+                                value={flight.flightNumber.split(' ')[0]}
+                                onChange={(e) => {
+                                  const number = flight.flightNumber.split(' ')[1] || ''
+                                  updateFlight(index, 'flightNumber', `${e.target.value} ${number}`)
+                                }}
+                                required
+                              >
+                                {commonAirlines.map(airline => (
+                                  <option key={airline.code} value={airline.code}>
+                                    {airline.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <Input
+                                placeholder="Flight # (e.g., 1234)"
+                                value={flight.flightNumber.split(' ')[1] || ''}
+                                onChange={(e) => {
+                                  const airline = flight.flightNumber.split(' ')[0] || ''
+                                  updateFlight(index, 'flightNumber', `${airline} ${e.target.value}`)
+                                }}
+                                required
+                                className="flex-1"
+                              />
+                            </div>
                           </div>
                           <div>
                             <Label>Date</Label>
