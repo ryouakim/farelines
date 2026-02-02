@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
-import { sendPriceDropEmail } from '@/lib/emails/send';
+//import { sendPriceDropEmail } from '@/lib/emails/send';
 
 const MONGODB_URI = process.env.MONGODB_URI!;
 const MONGODB_DB = process.env.MONGODB_DB || 'farelines';
@@ -95,26 +95,26 @@ export async function GET(request: NextRequest) {
         );
         
         // Send alert if needed
-        if (isPriceDrop && meetsThreshold) {
+        //if (isPriceDrop && meetsThreshold) {
           // Get user settings
-          const user = await db.collection('users').findOne({ email: trip.userEmail });
+        //  const user = await db.collection('users').findOne({ email: trip.userEmail });
           
-          if (user?.priceDropAlerts !== false) {
-            await sendPriceDropEmail({
-              to: trip.userEmail,
-              tripName: trip.tripName,
-              recordLocator: trip.recordLocator,
-              oldPrice: trip.paidPrice,
-              newPrice: priceData.currentPrice,
-              savings: trip.paidPrice - priceData.currentPrice,
-              fareType: trip.fareType,
-              googleFlightsUrl: trip.googleFlightsUrl,
-              flights: trip.flights
-            });
+          //if (user?.priceDropAlerts !== false) {
+            //await sendPriceDropEmail({
+              //to: trip.userEmail,
+              //tripName: trip.tripName,
+              //recordLocator: trip.recordLocator,
+              //oldPrice: trip.paidPrice,
+              //newPrice: priceData.currentPrice,
+              //savings: trip.paidPrice - priceData.currentPrice,
+              //fareType: trip.fareType,
+              //googleFlightsUrl: trip.googleFlightsUrl,
+              //flights: trip.flights
+            //});
             
             alerts++;
-          }
-        }
+          //}
+        //}
         
         processed++;
         
