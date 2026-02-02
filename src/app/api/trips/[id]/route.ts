@@ -1,31 +1,26 @@
+// src/app/api/trips/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getTripsCollection, getWorkerQueueCollection } from '@/lib/mongodb'
+import { connectToDatabase } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
-import { 
-  normalizeFlightNumber, 
-  normalizeIataCode, 
-  normalizePnr,
-  parseGoogleFlightsUrl 
-} from '@/lib/utils'
 
-// Update schema
+// Validation schema
 const updateTripSchema = z.object({
   tripName: z.string().min(1).optional(),
   paidPrice: z.number().min(0).optional(),
-  fareType: z.enum(['basic_economy', 'main_cabin', 'main_plus', 'main_select', 'premium_economy', 'business', 'first']).optional(),
-  thresholdUsd: z.number().min(1).optional(),
-  status: z.enum(['active', 'completed', 'expired', 'paused']).optional(),
+  fareType: z.enum(['basic_economy', 'main_cabin', 'premium_economy', 'business', 'first', 'main_plus', 'main_select']).optional(),
+  thresholdUsd: z.number().min(0).optional(),
+  googleFlightsUrl: z.string().url().optional().or(z.literal('')),
+  recordLocator: z.string().min(6).max(6).optional(),
   flights: z.array(z.object({
     flightNumber: z.string(),
     date: z.string(),
     origin: z.string().length(3),
     destination: z.string().length(3),
     departureTimeLocal: z.string().optional(),
-    departureTz: z.string().optional(),
-  })).optional()
+  })).optional(),
 })
 
 export async function GET(
@@ -34,13 +29,12 @@ export async function GET(
 ) {
   try {
     const session = await getServerSession(authOptions)
-    
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const trips = await getTripsCollection()
-    const trip = await trips.findOne({
+    const { db } = await connectToDatabase()
+    const trip = await db.collection('trips').findOne({
       _id: new ObjectId(params.id),
       userEmail: session.user.email
     })
@@ -65,64 +59,75 @@ export async function PATCH(
 ) {
   try {
     const session = await getServerSession(authOptions)
-    
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const body = await request.json()
+    console.log('Update trip request body:', body) // Debug log
     
-    // Validate input
-    const validation = updateTripSchema.safeParse(body)
-    if (!validation.success) {
-      return NextResponse.json(
-        { 
-          error: 'Validation failed', 
-          fieldErrors: validation.error.flatten().fieldErrors 
-        },
-        { status: 400 }
-      )
+    // Validate the input
+    const validatedData = updateTripSchema.parse(body)
+    console.log('Validated data:', validatedData) // Debug log
+
+    const { db } = await connectToDatabase()
+    
+    // Check if trip exists and belongs to user
+    const existingTrip = await db.collection('trips').findOne({
+      _id: new ObjectId(params.id),
+      userEmail: session.user.email
+    })
+
+    if (!existingTrip) {
+      return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
     }
 
-    const data = validation.data
+    // Build update object
     const updateData: any = {
       updatedAt: new Date(),
-      needsCheck: true, // Flag for worker to recheck
+      needsCheck: true // Mark for worker to check
     }
 
-    // Add fields that were provided
-    if (data.tripName) updateData.tripName = data.tripName
-    if (data.paidPrice !== undefined) {
-      updateData.paidPrice = data.paidPrice
-      updateData.bookedPrice = data.paidPrice // backward compatibility
-    }
-    if (data.fareType) updateData.fareType = data.fareType
-    if (data.thresholdUsd !== undefined) updateData.thresholdUsd = data.thresholdUsd
-    if (data.status) updateData.status = data.status
-
-    // Handle flights update
-    if (data.flights) {
-      const normalizedFlights = data.flights.map(flight => {
-        const { airline, number, formatted } = normalizeFlightNumber(flight.flightNumber)
-        return {
-          ...flight,
-          flightNumber: formatted,
-          airline,
-          flightNumberNum: number,
-          origin: normalizeIataCode(flight.origin),
-          destination: normalizeIataCode(flight.destination),
-          departureUtc: flight.departureTimeLocal ? new Date(`${flight.date}T${flight.departureTimeLocal}`) : undefined,
+    // Add each field if provided
+    if (validatedData.tripName !== undefined) updateData.tripName = validatedData.tripName
+    if (validatedData.paidPrice !== undefined) updateData.paidPrice = validatedData.paidPrice
+    if (validatedData.fareType !== undefined) updateData.fareType = validatedData.fareType
+    if (validatedData.thresholdUsd !== undefined) updateData.thresholdUsd = validatedData.thresholdUsd
+    if (validatedData.recordLocator !== undefined) updateData.recordLocator = validatedData.recordLocator.toUpperCase()
+    if (validatedData.flights !== undefined) updateData.flights = validatedData.flights
+    
+    // Handle Google Flights URL specially
+    if (validatedData.googleFlightsUrl !== undefined) {
+      updateData.googleFlightsUrl = validatedData.googleFlightsUrl
+      console.log('Setting googleFlightsUrl to:', validatedData.googleFlightsUrl) // Debug log
+      
+      // Parse URL for gfQuery and gfHash if URL provided
+      if (validatedData.googleFlightsUrl) {
+        try {
+          const url = new URL(validatedData.googleFlightsUrl)
+          updateData.gfQuery = validatedData.googleFlightsUrl
+          
+          // Extract tfs parameter for hash
+          const tfs = url.searchParams.get('tfs')
+          if (tfs) {
+            const crypto = require('crypto')
+            updateData.gfHash = crypto.createHash('md5').update(tfs).digest('hex')
+          }
+        } catch (urlError) {
+          console.log('URL parsing failed:', urlError)
         }
-      })
-      updateData.flights = normalizedFlights
+      } else {
+        // Clear URL fields if empty string provided
+        updateData.gfQuery = ''
+        updateData.gfHash = ''
+      }
     }
 
-    const trips = await getTripsCollection()
-    const result = await trips.updateOne(
-      { 
-        _id: new ObjectId(params.id),
-        userEmail: session.user.email 
-      },
+    console.log('Final update data:', updateData) // Debug log
+
+    // Update the trip
+    const result = await db.collection('trips').updateOne(
+      { _id: new ObjectId(params.id) },
       { $set: updateData }
     )
 
@@ -130,20 +135,28 @@ export async function PATCH(
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
     }
 
-    // Add to worker queue for rechecking
-    const queue = await getWorkerQueueCollection()
-    await queue.insertOne({
-      tripId: params.id,
-      reason: 'updated',
-      priority: 2,
-      attempts: 0,
-      status: 'pending',
-      createdAt: new Date(),
+    // Fetch updated trip
+    const updatedTrip = await db.collection('trips').findOne({
+      _id: new ObjectId(params.id)
     })
 
-    return NextResponse.json({ ok: true })
+    console.log('Updated trip googleFlightsUrl:', updatedTrip?.googleFlightsUrl) // Debug log
+
+    return NextResponse.json({ 
+      success: true, 
+      trip: updatedTrip 
+    })
+
   } catch (error) {
     console.error('Error updating trip:', error)
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation error', details: error.errors },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json(
       { error: 'Failed to update trip' },
       { status: 500 }
@@ -157,33 +170,23 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions)
-    
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const trips = await getTripsCollection()
+    const { db } = await connectToDatabase()
     
-    // Soft delete by archiving
-    const result = await trips.updateOne(
-      { 
-        _id: new ObjectId(params.id),
-        userEmail: session.user.email 
-      },
-      { 
-        $set: { 
-          isArchived: true,
-          status: 'completed',
-          updatedAt: new Date() 
-        }
-      }
-    )
+    const result = await db.collection('trips').deleteOne({
+      _id: new ObjectId(params.id),
+      userEmail: session.user.email
+    })
 
-    if (result.matchedCount === 0) {
+    if (result.deletedCount === 0) {
       return NextResponse.json({ error: 'Trip not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ success: true })
+
   } catch (error) {
     console.error('Error deleting trip:', error)
     return NextResponse.json(
