@@ -1,10 +1,11 @@
-// apps/worker/fareMonitor.js
-// Main fare monitoring logic - Updated for Farelines
+/// apps/worker/fareMonitor.js
+// Main fare monitoring logic - Updated for Farelines with improved scraping
 
 require('dotenv').config();
 const { MongoClient, ObjectId } = require('mongodb');
 const puppeteer = require('puppeteer');
 const crypto = require('crypto');
+const fs = require('fs');
 const config = require('./config');
 const logger = require('./logger');
 const { sendFareAlert } = require('./emailNotifier');
@@ -48,8 +49,7 @@ function parseGoogleFlightsUrl(url) {
 }
 
 /**
- * Scrape Google Flights for current prices
- * This is your main scraping logic - adapt as needed
+ * Scrape Google Flights for current prices with improved selectors
  */
 async function scrapeGoogleFlights(url, retryCount = 0) {
   const browser = await puppeteer.launch({
@@ -58,7 +58,9 @@ async function scrapeGoogleFlights(url, retryCount = 0) {
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
-      '--disable-gpu'
+      '--disable-gpu',
+      '--disable-web-security',
+      '--disable-features=VizDisplayCompositor'
     ]
   });
 
@@ -80,43 +82,97 @@ async function scrapeGoogleFlights(url, retryCount = 0) {
       timeout: config.SCRAPING.TIMEOUT
     });
     
-    // Wait for prices to load
-    await page.waitForSelector('[data-gs-price]', { 
-      timeout: 30000 
-    }).catch(() => {
-      logger.warn('Price selector not found, trying alternatives');
-    });
+    // Wait a bit for dynamic content to load
+    await page.waitForTimeout(3000);
     
-    // Extract price data
+    // Debug: save screenshot and HTML if enabled
+    if (process.env.DEBUG_SCRAPING === 'true') {
+      try {
+        await page.screenshot({ path: `debug-screenshot-${Date.now()}.png` });
+        const html = await page.content();
+        fs.writeFileSync(`debug-page-${Date.now()}.html`, html);
+        console.log('Debug files saved');
+      } catch (debugError) {
+        console.log('Debug file save failed:', debugError.message);
+      }
+    }
+    
+    // Extract price data with updated selectors
     const priceData = await page.evaluate(() => {
       const prices = {};
       
-      // Try to find prices by fare type
-      // This selector strategy needs to be updated based on current Google Flights DOM
-      const priceElements = document.querySelectorAll('[data-gs-price]');
-      
-      priceElements.forEach(el => {
-        const fareType = el.closest('[data-fare-type]')?.getAttribute('data-fare-type') || 
-                        el.closest('.fare-option')?.querySelector('.fare-name')?.textContent?.toLowerCase().replace(/\s+/g, '_') ||
-                        'unknown';
-        const priceText = el.textContent || el.getAttribute('data-gs-price');
-        const price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
+      // Updated selectors for current Google Flights (December 2024)
+      const priceSelectors = [
+        // Primary selectors
+        '[data-gs-price]',
+        '[aria-label*="$"] [data-gs]',
+        '[role="button"][aria-label*="$"]',
         
-        if (!isNaN(price) && price > 0) {
-          prices[fareType] = price;
+        // Price display selectors
+        '.pIav2d',
+        '.YMlIz', 
+        '.yR1fYc',
+        '.gws-flights-results__price',
+        '[data-flt-ve="price"]',
+        
+        // Backup selectors
+        '[data-testid*="price"]',
+        '.price-text',
+        '[class*="price"]',
+        
+        // Text-based search
+        '*'
+      ];
+      
+      console.log('Starting price extraction...');
+      
+      // Try each selector
+      for (const selector of priceSelectors.slice(0, -1)) { // Skip '*' for now
+        try {
+          const elements = document.querySelectorAll(selector);
+          console.log(`Selector ${selector}: found ${elements.length} elements`);
+          
+          elements.forEach((el, index) => {
+            const priceText = el.textContent || el.getAttribute('data-gs-price') || el.getAttribute('aria-label');
+            if (priceText) {
+              // Look for price patterns like $123, 123, USD 123
+              const priceMatches = priceText.match(/\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
+              if (priceMatches) {
+                priceMatches.forEach(match => {
+                  const price = parseFloat(match.replace(/[$,]/g, ''));
+                  if (!isNaN(price) && price > 50 && price < 10000) { // Reasonable flight price range
+                    prices.main = price;
+                    console.log(`Found price: $${price} from selector: ${selector}, element ${index}`);
+                    console.log(`Price text: "${priceText}"`);
+                  }
+                });
+              }
+            }
+          });
+          
+          if (Object.keys(prices).length > 0) {
+            console.log('Price found, stopping search');
+            break;
+          }
+        } catch (selectorError) {
+          console.log(`Selector ${selector} failed:`, selectorError.message);
         }
-      });
+      }
       
-      // Fallback: try to get the main price
+      // Last resort: search all text content for prices
       if (Object.keys(prices).length === 0) {
-        const mainPrice = document.querySelector('.gws-flights-results__price')?.textContent ||
-                         document.querySelector('[data-flt-ve="price"]')?.textContent ||
-                         document.querySelector('.YMlIz')?.textContent; // Current Google selector
-        
-        if (mainPrice) {
-          const price = parseFloat(mainPrice.replace(/[^0-9.]/g, ''));
-          if (!isNaN(price) && price > 0) {
-            prices.main = price;
+        console.log('No prices found with selectors, trying text search...');
+        const bodyText = document.body.textContent || '';
+        const priceMatches = bodyText.match(/\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
+        if (priceMatches) {
+          // Get the first reasonable price
+          for (const match of priceMatches) {
+            const price = parseFloat(match.replace(/[$,]/g, ''));
+            if (price > 50 && price < 10000) {
+              prices.main = price;
+              console.log(`Found price via text search: $${price}`);
+              break;
+            }
           }
         }
       }
@@ -142,6 +198,13 @@ async function scrapeGoogleFlights(url, retryCount = 0) {
       });
       await new Promise(resolve => setTimeout(resolve, config.SCRAPING.RETRY_DELAY));
       return scrapeGoogleFlights(url, retryCount + 1);
+    }
+    
+    // If all retries failed, return mock data for testing
+    if (process.env.USE_MOCK_PRICES === 'true') {
+      logger.warn('Using mock price data for testing');
+      const mockPrice = Math.floor(Math.random() * 500) + 200; // Random price between $200-$700
+      return { main: mockPrice };
     }
     
     throw error;
