@@ -1,0 +1,19 @@
+{
+  "name": "@farelines/worker",
+  "version": "1.0.0",
+  "description": "Background worker for Farelines price monitoring",
+  "main": "fareMonitor.js",
+  "scripts": {
+    "start": "node cronService.js",
+    "monitor": "node fareMonitor.js",
+    "test": "node fareMonitor.js --test"
+  },
+  "dependencies": {
+    "mongodb": "^6.10.0",
+    "nodemailer": "^6.9.16",
+    "dotenv": "^16.4.5",
+    "puppeteer": "^21.0.0",
+    "node-cron": "^3.0.3",
+    "winston": "^3.11.0"
+  }
+}
