@@ -1,14 +1,12 @@
-/// apps/worker/fareMonitor.js
-// Main fare monitoring logic - Updated for Farelines with improved scraping
+// apps/worker/fareMonitor-amadeus.js
+// Updated fare monitoring with Amadeus API integration
 
 require('dotenv').config();
 const { MongoClient, ObjectId } = require('mongodb');
-const puppeteer = require('puppeteer');
-const crypto = require('crypto');
-const fs = require('fs');
 const config = require('./config');
 const logger = require('./logger');
 const { sendFareAlert } = require('./emailNotifier');
+const flightDataService = require('./flightDataService');
 
 // ===== Database Connection =====
 let cachedDb = null;
@@ -25,213 +23,58 @@ async function connectDB() {
   return cachedDb;
 }
 
-// ===== Core Functions =====
-
 /**
- * Extract Google Flights parameters from URL
+ * Generate mock prices for testing/fallback
  */
-function parseGoogleFlightsUrl(url) {
-  try {
-    const urlObj = new URL(url);
-    const tfs = urlObj.searchParams.get('tfs');
-    
-    if (!tfs) return null;
-    
-    return {
-      query: url,
-      hash: crypto.createHash('md5').update(tfs).digest('hex'),
-      tfs: tfs
-    };
-  } catch (error) {
-    logger.error('Error parsing URL', { url, error: error.message });
-    return null;
-  }
-}
-
-/**
- * Scrape Google Flights for current prices with improved selectors
- */
-async function scrapeGoogleFlights(url, retryCount = 0) {
-  const browser = await puppeteer.launch({
-    headless: config.SCRAPING.HEADLESS,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-web-security',
-      '--disable-features=VizDisplayCompositor'
-    ]
-  });
-
-  try {
-    const page = await browser.newPage();
-    
-    // Randomize user agent
-    const userAgent = config.SCRAPING.USER_AGENTS[
-      Math.floor(Math.random() * config.SCRAPING.USER_AGENTS.length)
-    ];
-    await page.setUserAgent(userAgent);
-    
-    // Set viewport
-    await page.setViewport({ width: 1280, height: 800 });
-    
-    logger.debug('Navigating to Google Flights', { url });
-    await page.goto(url, { 
-      waitUntil: 'networkidle2',
-      timeout: config.SCRAPING.TIMEOUT
-    });
-    
-    // Wait a bit for dynamic content to load
-    await page.waitForTimeout(3000);
-    
-    // Debug: save screenshot and HTML if enabled
-    if (process.env.DEBUG_SCRAPING === 'true') {
-      try {
-        await page.screenshot({ path: `debug-screenshot-${Date.now()}.png` });
-        const html = await page.content();
-        fs.writeFileSync(`debug-page-${Date.now()}.html`, html);
-        console.log('Debug files saved');
-      } catch (debugError) {
-        console.log('Debug file save failed:', debugError.message);
-      }
-    }
-    
-    // Extract price data with updated selectors
-    const priceData = await page.evaluate(() => {
-      const prices = {};
-      
-      // Updated selectors for current Google Flights (December 2024)
-      const priceSelectors = [
-        // Primary selectors
-        '[data-gs-price]',
-        '[aria-label*="$"] [data-gs]',
-        '[role="button"][aria-label*="$"]',
-        
-        // Price display selectors
-        '.pIav2d',
-        '.YMlIz', 
-        '.yR1fYc',
-        '.gws-flights-results__price',
-        '[data-flt-ve="price"]',
-        
-        // Backup selectors
-        '[data-testid*="price"]',
-        '.price-text',
-        '[class*="price"]',
-        
-        // Text-based search
-        '*'
-      ];
-      
-      console.log('Starting price extraction...');
-      
-      // Try each selector
-      for (const selector of priceSelectors.slice(0, -1)) { // Skip '*' for now
-        try {
-          const elements = document.querySelectorAll(selector);
-          console.log(`Selector ${selector}: found ${elements.length} elements`);
-          
-          elements.forEach((el, index) => {
-            const priceText = el.textContent || el.getAttribute('data-gs-price') || el.getAttribute('aria-label');
-            if (priceText) {
-              // Look for price patterns like $123, 123, USD 123
-              const priceMatches = priceText.match(/\$?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
-              if (priceMatches) {
-                priceMatches.forEach(match => {
-                  const price = parseFloat(match.replace(/[$,]/g, ''));
-                  if (!isNaN(price) && price > 50 && price < 10000) { // Reasonable flight price range
-                    prices.main = price;
-                    console.log(`Found price: $${price} from selector: ${selector}, element ${index}`);
-                    console.log(`Price text: "${priceText}"`);
-                  }
-                });
-              }
-            }
-          });
-          
-          if (Object.keys(prices).length > 0) {
-            console.log('Price found, stopping search');
-            break;
-          }
-        } catch (selectorError) {
-          console.log(`Selector ${selector} failed:`, selectorError.message);
-        }
-      }
-      
-      // Last resort: search all text content for prices
-      if (Object.keys(prices).length === 0) {
-        console.log('No prices found with selectors, trying text search...');
-        const bodyText = document.body.textContent || '';
-        const priceMatches = bodyText.match(/\$(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
-        if (priceMatches) {
-          // Get the first reasonable price
-          for (const match of priceMatches) {
-            const price = parseFloat(match.replace(/[$,]/g, ''));
-            if (price > 50 && price < 10000) {
-              prices.main = price;
-              console.log(`Found price via text search: $${price}`);
-              break;
-            }
-          }
-        }
-      }
-      
-      return prices;
-    });
-    
-    await browser.close();
-    
-    if (Object.keys(priceData).length === 0) {
-      throw new Error('No prices found on page');
-    }
-    
-    logger.info('Scraping successful', { prices: priceData });
-    return priceData;
-    
-  } catch (error) {
-    await browser.close();
-    
-    if (retryCount < config.SCRAPING.RETRY_COUNT) {
-      logger.warn(`Scraping failed, retrying (${retryCount + 1}/${config.SCRAPING.RETRY_COUNT})`, {
-        error: error.message
-      });
-      await new Promise(resolve => setTimeout(resolve, config.SCRAPING.RETRY_DELAY));
-      return scrapeGoogleFlights(url, retryCount + 1);
-    }
-    
-    // If all retries failed, return mock data for testing
-    if (process.env.USE_MOCK_PRICES === 'true') {
-      logger.warn('Using mock price data for testing');
-      const mockPrice = Math.floor(Math.random() * 500) + 200; // Random price between $200-$700
-      return { main: mockPrice };
-    }
-    
-    throw error;
-  }
-}
-
-/**
- * Map scraped fare types to our normalized types
- */
-function normalizeFareType(scrapedType) {
-  const mapping = {
-    'basic': 'basic_economy',
-    'basic economy': 'basic_economy',
-    'main': 'main_cabin',
-    'main cabin': 'main_cabin',
-    'main plus': 'main_plus',
-    'main select': 'main_select',
-    'comfort+': 'premium_economy',
-    'premium': 'premium_economy',
-    'premium economy': 'premium_economy',
-    'business': 'business',
-    'first': 'first',
-    'delta one': 'first'
-  };
+function generateMockPrice(trip) {
+  const basePrice = trip.paidPrice || 400;
+  const variance = (Math.random() - 0.5) * 0.4;
+  const mockPrice = Math.round(basePrice * (1 + variance));
   
-  const normalized = scrapedType?.toLowerCase().replace(/\s+/g, ' ').trim();
-  return mapping[normalized] || scrapedType;
+  logger.info('Generated mock price', { 
+    tripId: trip._id, 
+    paidPrice: basePrice, 
+    mockPrice 
+  });
+  
+  return { [trip.fareType]: mockPrice };
+}
+
+/**
+ * Get flight prices using multiple strategies
+ */
+async function getFlightPrices(trip) {
+  // Strategy 1: Use mock prices if enabled
+  if (process.env.USE_MOCK_PRICES === 'true') {
+    logger.warn('Using mock price data for testing');
+    return generateMockPrice(trip);
+  }
+
+  // Strategy 2: Use Amadeus API for flight lookup
+  if (process.env.AMADEUS_API_KEY && process.env.AMADEUS_API_SECRET) {
+    try {
+      return await flightDataService.getFlightPrices(trip);
+    } catch (error) {
+      logger.warn('Amadeus API failed, falling back', { 
+        error: error.message,
+        tripId: trip._id 
+      });
+      
+      // Fall back to mock prices if API fails
+      if (process.env.ENABLE_MOCK_FALLBACK === 'true') {
+        return generateMockPrice(trip);
+      }
+      throw error;
+    }
+  }
+
+  // Strategy 3: Use Google Flights URL if available (legacy)
+  if (trip.googleFlightsUrl) {
+    logger.warn('No Amadeus API configured, would try Google Flights scraping');
+    throw new Error('Google Flights scraping disabled - configure Amadeus API or enable mock prices');
+  }
+
+  throw new Error('No price lookup method available - need Amadeus API credentials or flight data');
 }
 
 /**
@@ -245,35 +88,29 @@ async function checkTrip(db, trip) {
       pnr: trip.recordLocator 
     });
     
-    if (!trip.googleFlightsUrl) {
-      logger.warn('Trip missing Google Flights URL', { id: trip._id });
+    // Validate trip has flight data
+    if (!trip.flights || trip.flights.length === 0) {
+      logger.warn('Trip missing flight data', { id: trip._id });
       return null;
     }
+
+    // Get current prices
+    const currentPrices = await getFlightPrices(trip);
     
-    // Scrape current prices
-    const scrapedPrices = await scrapeGoogleFlights(trip.googleFlightsUrl);
-    
-    // Normalize and find matching fare type
-    const normalizedPrices = {};
-    let currentPrice = null;
-    
-    for (const [type, price] of Object.entries(scrapedPrices)) {
-      const normalizedType = normalizeFareType(type);
-      normalizedPrices[normalizedType] = price;
-      
-      if (normalizedType === trip.fareType) {
-        currentPrice = price;
-      }
-    }
-    
-    // If exact fare type not found, use main price or lowest
+    // Find price for this trip's fare type
+    let currentPrice = currentPrices[trip.fareType];
     if (!currentPrice) {
-      currentPrice = normalizedPrices.main_cabin || 
-                    normalizedPrices.main ||
-                    Math.min(...Object.values(normalizedPrices));
+      // Use lowest available price if exact fare type not found
+      currentPrice = Math.min(...Object.values(currentPrices));
+      logger.info('Using lowest price as fallback', { 
+        tripId: trip._id,
+        requestedFareType: trip.fareType,
+        availableFareTypes: Object.keys(currentPrices),
+        price: currentPrice
+      });
     }
     
-    // Determine if this is a price drop worth alerting
+    // Calculate savings
     const paidPrice = trip.paidPrice || trip.bookedPrice;
     const threshold = trip.thresholdUsd || config.ALERTS.MIN_SAVINGS_AMOUNT;
     const savings = paidPrice - currentPrice;
@@ -283,22 +120,23 @@ async function checkTrip(db, trip) {
                        savings >= config.ALERTS.MIN_SAVINGS_AMOUNT &&
                        savingsPercent >= config.ALERTS.MIN_SAVINGS_PERCENT;
     
-    // Check cooldown
+    // Check alert cooldown
     const lastAlertAt = trip.lastAlertAt ? new Date(trip.lastAlertAt) : null;
     const cooldownHours = config.ALERTS.COOLDOWN_HOURS;
     const cooldownExpired = !lastAlertAt || 
       (Date.now() - lastAlertAt.getTime()) > cooldownHours * 60 * 60 * 1000;
     
-    // Update trip in database
+    // Prepare database update
     const updateData = {
       lastCheckedAt: new Date(),
       lastCheckedPrice: currentPrice,
       current_fare: currentPrice,
-      lastCheckedFares: normalizedPrices,
-      needsCheck: false
+      lastCheckedFares: currentPrices,
+      needsCheck: false,
+      priceSource: process.env.USE_MOCK_PRICES === 'true' ? 'mock' : 'amadeus'
     };
     
-    // Update lowest seen
+    // Update lowest seen prices
     if (!trip.lowestSeen || currentPrice < trip.lowestSeen) {
       updateData.lowestSeen = currentPrice;
       updateData.lowestSeenDate = new Date();
@@ -306,17 +144,17 @@ async function checkTrip(db, trip) {
     
     // Update lowest by fare type
     if (!trip.lowestSeenByFareType) {
-      updateData.lowestSeenByFareType = normalizedPrices;
+      updateData.lowestSeenByFareType = currentPrices;
     } else {
       updateData.lowestSeenByFareType = { ...trip.lowestSeenByFareType };
-      for (const [type, price] of Object.entries(normalizedPrices)) {
+      for (const [type, price] of Object.entries(currentPrices)) {
         if (!updateData.lowestSeenByFareType[type] || price < updateData.lowestSeenByFareType[type]) {
           updateData.lowestSeenByFareType[type] = price;
         }
       }
     }
     
-    // Send alert if conditions met
+    // Send alert if conditions are met
     if (shouldAlert && cooldownExpired) {
       logger.info('Price drop detected!', {
         trip: trip.tripName,
@@ -326,7 +164,7 @@ async function checkTrip(db, trip) {
         savingsPercent: savingsPercent.toFixed(1)
       });
       
-      // Get user preferences
+      // Check user preferences
       const user = await db.collection(config.USERS_COLLECTION).findOne({ 
         email: trip.userEmail 
       });
@@ -340,31 +178,39 @@ async function checkTrip(db, trip) {
           percentSavings: savingsPercent.toFixed(1)
         }];
         
-        // Send email
-        const emailResult = await sendFareAlert(trip, alerts);
-        
-        if (emailResult.sent) {
-          updateData.lastAlertAt = new Date();
-          updateData.lastAlertPrice = currentPrice;
+        // Send email alert
+        try {
+          const emailResult = await sendFareAlert(trip, alerts);
           
-          // Record alert in database
-          await db.collection('alerts').insertOne({
+          if (emailResult.sent) {
+            updateData.lastAlertAt = new Date();
+            updateData.lastAlertPrice = currentPrice;
+            
+            // Log alert in database
+            await db.collection('alerts').insertOne({
+              tripId: trip._id,
+              userEmail: trip.userEmail,
+              type: 'price_drop',
+              paidPrice,
+              currentPrice,
+              savings,
+              savingsPercent,
+              fareType: trip.fareType,
+              priceSource: updateData.priceSource,
+              sentAt: new Date(),
+              emailMessageId: emailResult.messageId
+            });
+          }
+        } catch (emailError) {
+          logger.error('Failed to send alert email', {
             tripId: trip._id,
-            userEmail: trip.userEmail,
-            type: 'price_drop',
-            paidPrice,
-            currentPrice,
-            savings,
-            savingsPercent,
-            fareType: trip.fareType,
-            sentAt: new Date(),
-            emailMessageId: emailResult.messageId
+            error: emailError.message
           });
         }
       }
     }
     
-    // Update trip
+    // Update trip in database
     await db.collection(config.TRIPS_COLLECTION).updateOne(
       { _id: trip._id },
       { $set: updateData }
@@ -373,10 +219,11 @@ async function checkTrip(db, trip) {
     logger.info('Trip check completed', { 
       id: trip._id,
       currentPrice,
-      alert: shouldAlert && cooldownExpired 
+      alert: shouldAlert && cooldownExpired,
+      priceSource: updateData.priceSource
     });
     
-    return { currentPrice, normalizedPrices, alert: shouldAlert };
+    return { currentPrice, currentPrices, alert: shouldAlert };
     
   } catch (error) {
     logger.error('Error checking trip', { 
@@ -384,7 +231,7 @@ async function checkTrip(db, trip) {
       error: error.message 
     });
     
-    // Mark as checked with error
+    // Mark trip as checked with error
     await db.collection(config.TRIPS_COLLECTION).updateOne(
       { _id: trip._id },
       { 
@@ -401,18 +248,18 @@ async function checkTrip(db, trip) {
 }
 
 /**
- * Run a full sweep of all active trips
+ * Run a full monitoring sweep
  */
 async function runOnce() {
   const db = await connectDB();
   
   try {
-    // Find trips that need checking
+    // Find active trips with flight data
     const trips = await db.collection(config.TRIPS_COLLECTION)
       .find({
         status: { $ne: 'inactive' },
-        googleFlightsUrl: { $exists: true, $ne: '' },
-        // Check trips with flights in the future
+        flights: { $exists: true, $not: { $size: 0 } },
+        // Only check future trips
         'flights.0.date': { $gte: new Date().toISOString().slice(0, 10) }
       })
       .toArray();
@@ -427,7 +274,7 @@ async function runOnce() {
         await checkTrip(db, trip);
         successCount++;
         
-        // Rate limiting
+        // Rate limiting between checks
         if (config.MONITORING.RATE_LIMIT_DELAY_MS > 0) {
           await new Promise(resolve => setTimeout(resolve, config.MONITORING.RATE_LIMIT_DELAY_MS));
         }
@@ -440,28 +287,27 @@ async function runOnce() {
       }
     }
     
-    logger.info('Run complete', { 
+    logger.info('Monitoring run complete', { 
       total: trips.length, 
       success: successCount, 
       errors: errorCount 
     });
     
   } catch (error) {
-    logger.error('Run failed', { error: error.message });
+    logger.error('Monitoring run failed', { error: error.message });
     throw error;
   }
 }
 
-// Export for use by cronService and API
+// Export functions
 module.exports = {
   connectDB,
   checkTrip,
   runOnce,
-  scrapeGoogleFlights,
-  parseGoogleFlightsUrl
+  getFlightPrices
 };
 
-// If run directly, do a single sweep
+// If run directly, execute monitoring sweep
 if (require.main === module) {
   runOnce()
     .then(() => {

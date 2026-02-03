@@ -16,20 +16,24 @@ import {
   Link as LinkIcon,
   AlertCircle,
   Plane,
-  Save
+  Save,
+  CheckCircle2,
+  Clock,
+  Info,
+  Star
 } from 'lucide-react'
 import { useDropzone } from 'react-dropzone'
 import { parseGoogleFlightsUrl } from '@/lib/utils'
 import type { FareType } from '@/types/trip'
 
-const fareTypes: { value: FareType; label: string }[] = [
-  { value: 'basic_economy', label: 'Basic Economy' },
-  { value: 'main_cabin', label: 'Main Cabin' },
-  { value: 'main_plus', label: 'Main Plus' },
-  { value: 'main_select', label: 'Main Select' },
-  { value: 'premium_economy', label: 'Premium Economy' },
-  { value: 'business', label: 'Business' },
-  { value: 'first', label: 'First Class' },
+const fareTypes: { value: FareType; label: string; description: string }[] = [
+  { value: 'basic_economy', label: 'Basic Economy', description: 'No seat selection, last to board' },
+  { value: 'main_cabin', label: 'Main Cabin', description: 'Standard economy with seat selection' },
+  { value: 'main_plus', label: 'Main Plus', description: 'Extra legroom and priority boarding' },
+  { value: 'main_select', label: 'Main Select', description: 'Premium economy features' },
+  { value: 'premium_economy', label: 'Premium Economy', description: 'Enhanced comfort and service' },
+  { value: 'business', label: 'Business Class', description: 'Lie-flat seats, premium meals' },
+  { value: 'first', label: 'First Class', description: 'Luxury amenities and service' },
 ]
 
 const commonAirlines = [
@@ -93,6 +97,19 @@ export default function AddTripPage() {
     departureTz: ''
   }])
   const [paxCount, setPaxCount] = useState(1)
+
+  // Validation functions for better UX
+  const validateFlightNumber = (airline: string, number: string) => {
+    if (!airline || !number) return { valid: false, message: 'Both airline and number required' }
+    if (!/^\d{1,4}$/.test(number)) return { valid: false, message: 'Flight number must be 1-4 digits' }
+    return { valid: true, message: '' }
+  }
+
+  const validateAirportCode = (code: string) => {
+    if (!code) return { valid: false, message: 'Airport code required' }
+    if (!/^[A-Z]{3}$/.test(code.toUpperCase())) return { valid: false, message: 'Must be 3 letters (e.g., LAX)' }
+    return { valid: true, message: '' }
+  }
 
   // File upload for PDF
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -166,6 +183,54 @@ export default function AddTripPage() {
     setErrors({})
 
     try {
+      // Enhanced validation
+      if (!tripName.trim()) {
+        setErrors({ tripName: 'Trip name is required' })
+        setLoading(false)
+        return
+      }
+
+      if (!paidPrice || parseFloat(paidPrice) <= 0) {
+        setErrors({ paidPrice: 'Valid price is required' })
+        setLoading(false)
+        return
+      }
+
+      // Validate all flights
+      for (let i = 0; i < flights.length; i++) {
+        const flight = flights[i]
+        const airline = flight.flightNumber.split(' ')[0]
+        const number = flight.flightNumber.split(' ')[1]
+        
+        const flightValidation = validateFlightNumber(airline, number)
+        const originValidation = validateAirportCode(flight.origin)
+        const destValidation = validateAirportCode(flight.destination)
+
+        if (!flightValidation.valid) {
+          setErrors({ [`flight_${i}`]: `Flight ${i + 1}: ${flightValidation.message}` })
+          setLoading(false)
+          return
+        }
+
+        if (!originValidation.valid) {
+          setErrors({ [`flight_${i}`]: `Flight ${i + 1}: Origin ${originValidation.message}` })
+          setLoading(false)
+          return
+        }
+
+        if (!destValidation.valid) {
+          setErrors({ [`flight_${i}`]: `Flight ${i + 1}: Destination ${destValidation.message}` })
+          setLoading(false)
+          return
+        }
+
+        if (!flight.date) {
+          setErrors({ [`flight_${i}`]: `Flight ${i + 1}: Date is required` })
+          setLoading(false)
+          return
+        }
+      }
+
       const response = await fetch('/api/trips', {
         method: 'POST',
         headers: {
@@ -187,7 +252,7 @@ export default function AddTripPage() {
       const data = await response.json()
 
       if (response.ok) {
-        router.push('/app')
+        router.push(`/app/trips/${data.id}`)
       } else {
         setErrors(data.fieldErrors || { general: data.error })
       }
@@ -210,281 +275,327 @@ export default function AddTripPage() {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
+      <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
-          </button>
-
-          {step === 'method' ? (
-            <>
-              <h1 className="text-3xl font-bold mb-2">Add New Trip</h1>
-              <p className="text-muted-foreground mb-8">
-                Choose how you&apos;d like to add your flight details
+          <div className="flex items-center space-x-4 mb-8">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => step === 'details' ? setStep('method') : router.push('/app')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Add New Trip</h1>
+              <p className="text-muted-foreground">
+                {step === 'method' 
+                  ? 'Choose your preferred method to add flight details'
+                  : 'Enter your flight information for price monitoring'
+                }
               </p>
+            </div>
+          </div>
 
-              <div className="grid md:grid-cols-3 gap-6">
-                {/* Upload PDF */}
-                <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-                  <div {...getRootProps()}>
-                    <input {...getInputProps()} />
-                    <CardHeader className="text-center">
-                      <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/20 mx-auto">
-                        <Upload className="h-7 w-7 text-primary-600" />
-                      </div>
-                      <CardTitle className="text-lg">Upload PDF</CardTitle>
-                      <CardDescription>
-                        {isDragActive ? 'Drop the PDF here' : 'Drag & drop or click to upload your confirmation PDF'}
-                      </CardDescription>
-                    </CardHeader>
+          {step === 'method' && (
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* RECOMMENDED: Flight Number Entry */}
+              <Card className="relative border-2 border-primary bg-primary/5">
+                <div className="absolute -top-3 left-4">
+                  <div className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+                    <Star className="h-3 w-3" />
+                    <span>Recommended</span>
                   </div>
-                </Card>
-
-                {/* Google Flights URL */}
-                <Card>
-                  <CardHeader className="text-center">
-                    <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/20 mx-auto">
-                      <LinkIcon className="h-7 w-7 text-primary-600" />
+                </div>
+                
+                <CardHeader className="text-center pt-8">
+                  <div className="mx-auto mb-4 p-3 bg-primary/10 rounded-full">
+                    <Plane className="h-8 w-8 text-primary" />
+                  </div>
+                  <CardTitle className="text-xl">Flight Number Entry</CardTitle>
+                  <CardDescription className="text-center">
+                    Most reliable method - enter flight numbers directly
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-center space-y-4">
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-center space-x-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>Works with all airlines & booking sites</span>
                     </div>
-                    <CardTitle className="text-lg">Google Flights URL</CardTitle>
-                    <CardDescription>
-                      Paste your Google Flights booking URL
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Input
-                      placeholder="https://www.google.com/travel/flights..."
-                      value={googleFlightsUrl}
-                      onChange={(e) => setGoogleFlightsUrl(e.target.value)}
-                      className="mb-3"
-                    />
-                    <Button 
-                      onClick={handleGoogleFlightsUrl} 
-                      className="w-full"
-                      disabled={!googleFlightsUrl}
-                    >
-                      Continue
+                    <div className="flex items-center justify-center space-x-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>Never expires or goes stale</span>
+                    </div>
+                    <div className="flex items-center justify-center space-x-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span>Fastest & most accurate setup</span>
+                    </div>
+                  </div>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => setStep('details')}
+                  >
+                    Enter Flight Details
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Google Flights URL */}
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="text-center">
+                  <div className="mx-auto mb-4 p-3 bg-muted rounded-full">
+                    <LinkIcon className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <CardTitle className="text-xl">Google Flights URL</CardTitle>
+                  <CardDescription className="text-center">
+                    Import from Google Flights booking URL
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-center space-x-2">
+                      <Clock className="h-4 w-4 text-orange-500" />
+                      <span>URLs may expire over time</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="h-4 w-4 text-orange-500" />
+                      <span>Limited to Google Flights bookings</span>
+                    </div>
+                  </div>
+                  <Input
+                    placeholder="https://www.google.com/travel/flights/booking?..."
+                    value={googleFlightsUrl}
+                    onChange={(e) => setGoogleFlightsUrl(e.target.value)}
+                    className="text-xs font-mono"
+                  />
+                  {errors.url && (
+                    <p className="text-sm text-destructive">{errors.url}</p>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={handleGoogleFlightsUrl}
+                    disabled={!googleFlightsUrl.trim()}
+                  >
+                    Continue with URL
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* PDF Upload - Future */}
+              <Card className="hover:shadow-md transition-shadow opacity-60">
+                <CardHeader className="text-center">
+                  <div className="mx-auto mb-4 p-3 bg-muted rounded-full">
+                    <Upload className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <CardTitle className="text-xl">Upload PDF</CardTitle>
+                  <CardDescription className="text-center">
+                    Upload confirmation email or PDF (coming soon)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div 
+                    {...getRootProps()} 
+                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-not-allowed opacity-50 ${
+                      isDragActive ? 'border-primary bg-primary/5' : 'border-muted'
+                    }`}
+                  >
+                    <input {...getInputProps()} disabled />
+                    <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      AI-powered extraction from booking confirmations
+                    </p>
+                    <Button variant="outline" disabled className="w-full">
+                      Coming Soon
                     </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
-                {/* Manual Entry */}
-                <Card>
-                  <CardHeader className="text-center">
-                    <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/20 mx-auto">
-                      <Plane className="h-7 w-7 text-primary-600" />
-                    </div>
-                    <CardTitle className="text-lg">Manual Entry</CardTitle>
-                    <CardDescription>
-                      Enter your flight details manually
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button 
-                      onClick={() => setStep('details')} 
-                      className="w-full"
-                      variant="outline"
-                    >
-                      Enter Manually
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          ) : (
-            <>
-              <h1 className="text-3xl font-bold mb-2">Trip Details</h1>
-              <p className="text-muted-foreground mb-8">
-                Enter your flight information and preferences
-              </p>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Basic Information</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="tripName">Trip Name</Label>
-                        <Input
-                          id="tripName"
-                          placeholder="e.g., Summer Vacation 2024"
-                          value={tripName}
-                          onChange={(e) => setTripName(e.target.value)}
-                          required
-                        />
-                        {errors.tripName && (
-                          <p className="text-sm text-red-500 mt-1">{errors.tripName}</p>
-                        )}
-                      </div>
-                      <div>
-                        <Label htmlFor="pnr">Record Locator (PNR)</Label>
-                        <Input
-                          id="pnr"
-                          placeholder="6-character code"
-                          value={recordLocator}
-                          onChange={(e) => setRecordLocator(e.target.value.toUpperCase())}
-                          maxLength={6}
-                          required
-                        />
-                        {errors.recordLocator && (
-                          <p className="text-sm text-red-500 mt-1">{errors.recordLocator}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Google Flights URL Field - Now in Manual Entry Too */}
+          {step === 'details' && (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Trip Information</CardTitle>
+                  <CardDescription>Basic details about your trip and booking</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="googleUrl">
-                        Google Flights URL 
-                        <span className="text-muted-foreground text-xs ml-2">(Optional but recommended for price tracking)</span>
-                      </Label>
-                      <div className="relative">
-                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          id="googleUrl"
-                          placeholder="https://www.google.com/travel/flights/booking?..."
-                          value={googleFlightsUrl}
-                          onChange={(e) => setGoogleFlightsUrl(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        This helps us track the exact fare type and route for accurate price monitoring
-                      </p>
+                      <Label htmlFor="tripName">Trip Name *</Label>
+                      <Input
+                        id="tripName"
+                        placeholder="e.g., Spring Break Miami"
+                        value={tripName}
+                        onChange={(e) => setTripName(e.target.value)}
+                        className={errors.tripName ? 'border-destructive' : ''}
+                        required
+                      />
+                      {errors.tripName && (
+                        <p className="text-sm text-destructive mt-1">{errors.tripName}</p>
+                      )}
                     </div>
+                    <div>
+                      <Label htmlFor="recordLocator">Record Locator (PNR)</Label>
+                      <Input
+                        id="recordLocator"
+                        placeholder="6-character code (optional)"
+                        value={recordLocator}
+                        onChange={(e) => setRecordLocator(e.target.value.toUpperCase())}
+                        maxLength={6}
+                        className="font-mono text-center"
+                      />
+                    </div>
+                  </div>
 
-                    <div className="grid md:grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="paidPrice">Price Paid (USD)</Label>
+                  <div className="grid md:grid-cols-4 gap-4">
+                    <div>
+                      <Label htmlFor="paidPrice">Price Paid (USD) *</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                         <Input
                           id="paidPrice"
                           type="number"
                           placeholder="499"
                           value={paidPrice}
                           onChange={(e) => setPaidPrice(e.target.value)}
+                          className={`pl-8 ${errors.paidPrice ? 'border-destructive' : ''}`}
                           min="0"
                           step="0.01"
                           required
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="fareType">Fare Type</Label>
-                        <select
-                          id="fareType"
-                          className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
-                          value={fareType}
-                          onChange={(e) => setFareType(e.target.value as FareType)}
-                        >
-                          {fareTypes.map(ft => (
-                            <option key={ft.value} value={ft.value}>
-                              {ft.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <Label htmlFor="threshold">Alert Threshold (USD)</Label>
+                      {errors.paidPrice && (
+                        <p className="text-sm text-destructive mt-1">{errors.paidPrice}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="fareType">Fare Type</Label>
+                      <select
+                        id="fareType"
+                        className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
+                        value={fareType}
+                        onChange={(e) => setFareType(e.target.value as FareType)}
+                      >
+                        {fareTypes.map(ft => (
+                          <option key={ft.value} value={ft.value}>
+                            {ft.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="threshold">Alert Threshold</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                         <Input
                           id="threshold"
                           type="number"
                           placeholder="50"
                           value={thresholdUsd}
                           onChange={(e) => setThresholdUsd(e.target.value)}
+                          className="pl-8"
                           min="1"
                           step="1"
                         />
                       </div>
                     </div>
-
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="passengers">Number of Passengers</Label>
-                        <Input
-                          id="passengers"
-                          type="number"
-                          value={paxCount}
-                          onChange={(e) => setPaxCount(parseInt(e.target.value) || 1)}
-                          min="1"
-                          max="9"
-                        />
-                      </div>
+                    <div>
+                      <Label htmlFor="passengers">Passengers</Label>
+                      <Input
+                        id="passengers"
+                        type="number"
+                        value={paxCount}
+                        onChange={(e) => setPaxCount(parseInt(e.target.value) || 1)}
+                        min="1"
+                        max="9"
+                      />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
+              {/* Flight Details - Enhanced */}
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
                       <CardTitle>Flight Details</CardTitle>
-                      <Button
-                        type="button"
-                        onClick={addFlight}
-                        size="sm"
-                        variant="outline"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Flight
-                      </Button>
+                      <CardDescription>
+                        Enter each flight segment (add connecting flights separately)
+                      </CardDescription>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {flights.map((flight, index) => (
-                      <div key={index} className="p-4 border rounded-lg space-y-3">
-                        <div className="flex justify-between items-center mb-2">
+                    <Button
+                      type="button"
+                      onClick={addFlight}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Flight
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {flights.map((flight, index) => (
+                    <Card key={index} className="border-muted">
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-center mb-4">
                           <h4 className="font-medium flex items-center">
                             <Plane className="mr-2 h-4 w-4" />
                             Flight {index + 1}
                           </h4>
                           {flights.length > 1 && (
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="icon"
                               onClick={() => removeFlight(index)}
-                              className="text-red-500 hover:text-red-700"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
                             >
                               <X className="h-4 w-4" />
-                            </button>
+                            </Button>
                           )}
                         </div>
                         
-                        <div className="grid md:grid-cols-2 gap-3">
+                        <div className="grid md:grid-cols-3 gap-3 mb-3">
                           <div>
-                            <Label>Flight Number *</Label>
-                            <div className="flex gap-2">
-                              <select
-                                className="w-[180px] h-10 px-2 rounded-lg border border-input bg-background text-sm"
-                                value={flight.flightNumber.split(' ')[0]}
-                                onChange={(e) => {
-                                  const number = flight.flightNumber.split(' ')[1] || ''
-                                  updateFlight(index, 'flightNumber', `${e.target.value} ${number}`)
-                                }}
-                                required
-                              >
-                                {commonAirlines.map(airline => (
-                                  <option key={airline.code} value={airline.code}>
-                                    {airline.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <Input
-                                placeholder="Flight # (e.g., 1234)"
-                                value={flight.flightNumber.split(' ')[1] || ''}
-                                onChange={(e) => {
-                                  const airline = flight.flightNumber.split(' ')[0] || ''
-                                  updateFlight(index, 'flightNumber', `${airline} ${e.target.value}`)
-                                }}
-                                required
-                                className="flex-1"
-                              />
-                            </div>
+                            <Label>Airline *</Label>
+                            <select
+                              className="w-full h-10 px-2 rounded-lg border border-input bg-background text-sm"
+                              value={flight.flightNumber.split(' ')[0]}
+                              onChange={(e) => {
+                                const number = flight.flightNumber.split(' ')[1] || ''
+                                updateFlight(index, 'flightNumber', `${e.target.value} ${number}`)
+                              }}
+                              required
+                            >
+                              {commonAirlines.map(airline => (
+                                <option key={airline.code} value={airline.code}>
+                                  {airline.name}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                           <div>
-                            <Label>Date</Label>
+                            <Label>Flight Number *</Label>
+                            <Input
+                              placeholder="1043"
+                              value={flight.flightNumber.split(' ')[1] || ''}
+                              onChange={(e) => {
+                                const airline = flight.flightNumber.split(' ')[0] || ''
+                                updateFlight(index, 'flightNumber', `${airline} ${e.target.value}`)
+                              }}
+                              className="text-center font-mono"
+                              required
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Numbers only</p>
+                          </div>
+                          <div>
+                            <Label>Date *</Label>
                             <Input
                               type="date"
                               value={flight.date}
@@ -496,22 +607,24 @@ export default function AddTripPage() {
                         
                         <div className="grid md:grid-cols-4 gap-3">
                           <div>
-                            <Label>Origin (IATA)</Label>
+                            <Label>From (IATA) *</Label>
                             <Input
-                              placeholder="JFK"
+                              placeholder="CLT"
                               value={flight.origin}
                               onChange={(e) => updateFlight(index, 'origin', e.target.value.toUpperCase())}
                               maxLength={3}
+                              className="text-center font-mono text-lg"
                               required
                             />
                           </div>
                           <div>
-                            <Label>Destination (IATA)</Label>
+                            <Label>To (IATA) *</Label>
                             <Input
                               placeholder="LAX"
                               value={flight.destination}
                               onChange={(e) => updateFlight(index, 'destination', e.target.value.toUpperCase())}
                               maxLength={3}
+                              className="text-center font-mono text-lg"
                               required
                             />
                           </div>
@@ -529,43 +642,80 @@ export default function AddTripPage() {
                               placeholder="America/New_York"
                               value={flight.departureTz}
                               onChange={(e) => updateFlight(index, 'departureTz', e.target.value)}
+                              className="text-sm"
                             />
                           </div>
                         </div>
+
+                        {errors[`flight_${index}`] && (
+                          <div className="mt-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                            <div className="flex items-center space-x-2">
+                              <AlertCircle className="h-4 w-4 text-destructive" />
+                              <p className="text-sm text-destructive">{errors[`flight_${index}`]}</p>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+
+                  {/* Help Section */}
+                  <Card className="bg-muted/50">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start space-x-3">
+                        <Info className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">Need help with flight details?</p>
+                          <ul className="text-sm text-muted-foreground space-y-1">
+                            <li>• Flight numbers are on your boarding pass (e.g., AA 1043, DL 2156)</li>
+                            <li>• Airport codes are 3 letters (CLT=Charlotte, LAX=Los Angeles)</li>
+                            <li>• For connecting flights, add each segment separately</li>
+                            <li>• Round trips need both outbound and return flights</li>
+                          </ul>
+                        </div>
                       </div>
-                    ))}
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </CardContent>
+              </Card>
 
-                {errors.general && (
-                  <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                    <div className="flex items-center space-x-2">
-                      <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                      <p className="text-sm text-red-800 dark:text-red-200">{errors.general}</p>
-                    </div>
+              {errors.general && (
+                <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <div className="flex items-center space-x-2">
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                    <p className="text-sm text-destructive">{errors.general}</p>
                   </div>
-                )}
-
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => router.back()}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1"
-                  >
-                    <Save className="mr-2 h-4 w-4" />
-                    {loading ? 'Creating...' : 'Create Trip'}
-                  </Button>
                 </div>
-              </form>
-            </>
+              )}
+
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep('method')}
+                  disabled={loading}
+                >
+                  Back
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1"
+                >
+                  {loading ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Creating Trip...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Create Trip
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
           )}
         </div>
       </div>
