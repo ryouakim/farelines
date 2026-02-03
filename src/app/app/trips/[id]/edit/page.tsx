@@ -224,72 +224,51 @@ export default function EditTripPage() {
   }
 
   const updateFlight = (index: number, field: keyof Flight, value: string) => {
-    const updated = [...flights]
-    updated[index] = { ...updated[index], [field]: value }
-    
-    // Auto-advance for IATA codes
-    if ((field === 'origin' || field === 'destination') && value.length === 3) {
-      const nextInput = document.querySelector(
-        `input[name="flight-${index}-${field === 'origin' ? 'destination' : 'next'}"]`
-      ) as HTMLInputElement
-      if (nextInput) {
-        nextInput.focus()
-      }
-    }
-    
-    setFlights(updated)
+    setFlights(flights.map((flight, i) => 
+      i === index ? { ...flight, [field]: value } : flight
+    ))
   }
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this trip? This cannot be undone.')) {
-      return
-    }
-    
-    setLoading(true)
-    try {
-      const response = await fetch(`/api/trips/${params.id}`, {
-        method: 'DELETE'
-      })
-      
-      if (response.ok) {
-        router.push('/app')
-      } else {
-        setErrors({ general: 'Failed to delete trip' })
-      }
-    } catch (error) {
-      setErrors({ general: 'Failed to delete trip' })
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // FIXED: Proper form submission that sends all data
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // Validate all fields
-    validateField('tripName', tripName)
-    validateField('recordLocator', recordLocator)
-    validateField('paidPrice', paidPrice)
-    
-    if (Object.keys(errors).length > 0) {
-      return
-    }
-    
     setLoading(true)
     setErrors({})
 
     try {
-      const payload = {
-        tripName,
-        recordLocator,
-        paxCount,
-        ptc,
-        paidPrice: parseFloat(paidPrice),
-        fareType,
-        thresholdUsd: parseFloat(thresholdUsd),
-        googleFlightsUrl: googleFlightsUrl || undefined,
-        flights: flights.filter(f => f.flightNumber && f.date && f.origin && f.destination)
+      // Validate required fields
+      if (!tripName.trim()) {
+        setErrors({ tripName: 'Trip name is required' })
+        setLoading(false)
+        return
       }
+      
+      if (!recordLocator || recordLocator.length !== 6) {
+        setErrors({ recordLocator: 'PNR must be 6 characters' })
+        setLoading(false)
+        return
+      }
+      
+      if (!paidPrice || parseFloat(paidPrice) <= 0) {
+        setErrors({ paidPrice: 'Price must be greater than 0' })
+        setLoading(false)
+        return
+      }
+
+      // Build the payload with ALL form data
+      const payload = {
+        tripName: tripName.trim(),
+        recordLocator: recordLocator.toUpperCase(),
+        paidPrice: parseFloat(paidPrice),
+        fareType: fareType,
+        thresholdUsd: parseFloat(thresholdUsd) || 50,
+        googleFlightsUrl: googleFlightsUrl.trim(), // FIXED: Include Google Flights URL
+        flights: flights.filter(f => 
+          f.flightNumber && f.date && f.origin && f.destination
+        )
+      }
+
+      console.log('Submitting payload:', payload) // Debug log
 
       const response = await fetch(`/api/trips/${params.id}`, {
         method: 'PATCH',
@@ -299,15 +278,19 @@ export default function EditTripPage() {
         body: JSON.stringify(payload),
       })
 
-      const data = await response.json()
+      const result = await response.json()
+      console.log('API response:', result) // Debug log
 
       if (response.ok) {
         router.push(`/app/trips/${params.id}`)
       } else {
-        setErrors(data.fieldErrors || { general: data.error })
+        setErrors({ 
+          general: result.error || 'Failed to update trip'
+        })
       }
     } catch (error) {
-      setErrors({ general: 'Failed to update trip. Please try again.' })
+      console.error('Error updating trip:', error)
+      setErrors({ general: 'Failed to update trip' })
     } finally {
       setLoading(false)
     }
@@ -318,12 +301,10 @@ export default function EditTripPage() {
       <>
         <Header />
         <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <Skeleton className="h-8 w-48 mb-6" />
-          <Skeleton className="h-10 w-64 mb-2" />
-          <Skeleton className="h-6 w-96 mb-8" />
-          <div className="space-y-6">
-            <Skeleton className="h-64" />
-            <Skeleton className="h-96" />
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-48 w-full" />
           </div>
         </div>
       </>
@@ -342,169 +323,136 @@ export default function EditTripPage() {
               <li><ChevronRight className="h-4 w-4 text-muted-foreground" /></li>
               <li><Link href="/app" className="text-muted-foreground hover:text-foreground">Dashboard</Link></li>
               <li><ChevronRight className="h-4 w-4 text-muted-foreground" /></li>
-              {originalTrip && (
-                <>
-                  <li>
-                    <Link 
-                      href={`/app/trips/${params.id}`} 
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      {originalTrip.tripName}
-                    </Link>
-                  </li>
-                  <li><ChevronRight className="h-4 w-4 text-muted-foreground" /></li>
-                </>
-              )}
-              <li className="text-foreground font-medium">Edit</li>
+              <li><Link href={`/app/trips/${params.id}`} className="text-muted-foreground hover:text-foreground">Trip Details</Link></li>
+              <li><ChevronRight className="h-4 w-4 text-muted-foreground" /></li>
+              <li className="text-foreground font-medium">Edit Trip</li>
             </ol>
           </nav>
 
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center space-x-4 mb-8">
+            <Link href={`/app/trips/${params.id}`}>
+              <Button variant="outline" size="icon">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            </Link>
             <div>
               <h1 className="text-3xl font-bold">Edit Trip</h1>
-              <p className="text-muted-foreground mt-1">
-                Update your trip information and flight details
-              </p>
+              <p className="text-muted-foreground">Update your trip details and preferences</p>
             </div>
-            
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={loading}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Trip
-            </Button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Trip Information</CardTitle>
-                <CardDescription>Update the basic details of your trip</CardDescription>
+                <CardTitle>Basic Information</CardTitle>
+                <CardDescription>Trip name and booking details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="tripName">Trip Name *</Label>
+                    <Label htmlFor="trip-name">Trip Name *</Label>
                     <Input
-                      id="tripName"
-                      placeholder="e.g., Summer Vacation 2024"
+                      id="trip-name"
+                      placeholder="Spring Break Miami"
                       value={tripName}
                       onChange={(e) => {
                         setTripName(e.target.value)
                         handleFieldChange('tripName', e.target.value)
                       }}
-                      onBlur={() => validateField('tripName', tripName)}
-                      required
                       className={errors.tripName ? 'border-destructive' : ''}
+                      required
                     />
-                    {fieldTouched.tripName && errors.tripName && (
+                    {errors.tripName && (
                       <p className="text-sm text-destructive mt-1">{errors.tripName}</p>
                     )}
                   </div>
-                  
                   <div>
-                    <Label htmlFor="pnr">Record Locator (PNR) *</Label>
+                    <Label htmlFor="pnr">Booking Reference (PNR) *</Label>
                     <Input
                       id="pnr"
-                      placeholder="6-character code (e.g., ABC123)"
+                      placeholder="ABC123"
                       value={recordLocator}
                       onChange={(e) => {
-                        const value = e.target.value.toUpperCase().slice(0, 6)
+                        const value = e.target.value.toUpperCase()
                         setRecordLocator(value)
                         handleFieldChange('recordLocator', value)
                       }}
-                      onBlur={() => validateField('recordLocator', recordLocator)}
                       maxLength={6}
+                      className={`font-mono text-center ${errors.recordLocator ? 'border-destructive' : ''}`}
                       required
-                      className={errors.recordLocator ? 'border-destructive' : ''}
                     />
-                    <div className="flex items-center gap-2 mt-1">
-                      {fieldTouched.recordLocator && errors.recordLocator && (
-                        <p className="text-sm text-destructive">{errors.recordLocator}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground ml-auto">
-                        {recordLocator.length}/6
-                      </p>
-                    </div>
+                    {errors.recordLocator && (
+                      <p className="text-sm text-destructive mt-1">{errors.recordLocator}</p>
+                    )}
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="googleUrl">
-                    Google Flights URL 
-                    <span className="text-muted-foreground text-xs ml-2">(Recommended for accurate tracking)</span>
+                  <Label htmlFor="google-flights-url" className="flex items-center space-x-2">
+                    <LinkIcon className="h-4 w-4" />
+                    <span>Google Flights Booking URL</span>
                   </Label>
-                  <div className="relative">
-                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="googleUrl"
-                      placeholder="https://www.google.com/travel/flights/booking?..."
-                      value={googleFlightsUrl}
-                      onChange={(e) => setGoogleFlightsUrl(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 flex items-start gap-1">
-                    <Info className="h-3 w-3 mt-0.5" />
-                    This helps us track the exact fare type and route for accurate price monitoring
+                  <Input
+                    id="google-flights-url"
+                    type="url"
+                    placeholder="https://www.google.com/travel/flights/booking?tfs=..."
+                    value={googleFlightsUrl}
+                    onChange={(e) => setGoogleFlightsUrl(e.target.value)}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <Info className="h-3 w-3 inline mr-1" />
+                    Copy your booking URL from Google Flights for better price tracking
                   </p>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="grid md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pricing & Monitoring</CardTitle>
+                <CardDescription>Set price tracking preferences</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="paidPrice">Price Paid *</Label>
+                    <Label htmlFor="paid-price">Price Paid *</Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                       <Input
-                        id="paidPrice"
+                        id="paid-price"
                         type="number"
-                        placeholder="499.99"
+                        placeholder="450"
                         value={paidPrice}
                         onChange={(e) => {
                           setPaidPrice(e.target.value)
                           handleFieldChange('paidPrice', e.target.value)
                         }}
-                        onBlur={() => validateField('paidPrice', paidPrice)}
                         className={`pl-8 ${errors.paidPrice ? 'border-destructive' : ''}`}
-                        min="0"
+                        min="1"
                         step="0.01"
                         required
                       />
                     </div>
-                    {fieldTouched.paidPrice && errors.paidPrice && (
+                    {errors.paidPrice && (
                       <p className="text-sm text-destructive mt-1">{errors.paidPrice}</p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1">Total in USD</p>
                   </div>
                   
                   <div>
-                    <Label htmlFor="fareType">Fare Type</Label>
+                    <Label htmlFor="fare-type">Fare Type</Label>
                     <select
-                      id="fareType"
+                      id="fare-type"
                       className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
                       value={fareType}
                       onChange={(e) => setFareType(e.target.value as FareType)}
                     >
-                      {fareTypes.map(ft => (
-                        <option key={ft.value} value={ft.value}>
-                          {ft.label}
+                      {fareTypes.map(fare => (
+                        <option key={fare.value} value={fare.value}>
+                          {fare.label}
                         </option>
                       ))}
                     </select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="passengers">Passengers</Label>
-                    <Input
-                      id="passengers"
-                      type="number"
-                      value={paxCount}
-                      onChange={(e) => setPaxCount(parseInt(e.target.value) || 1)}
-                      min="1"
-                      max="9"
-                    />
                   </div>
                   
                   <div>
@@ -615,7 +563,6 @@ export default function EditTripPage() {
                           <Label>From (IATA) *</Label>
                           <Input
                             placeholder="CLT"
-                            name={`flight-${index}-origin`}
                             value={flight.origin}
                             onChange={(e) => updateFlight(index, 'origin', e.target.value.toUpperCase())}
                             maxLength={3}
@@ -627,7 +574,6 @@ export default function EditTripPage() {
                           <Label>To (IATA) *</Label>
                           <Input
                             placeholder="LAX"
-                            name={`flight-${index}-destination`}
                             value={flight.destination}
                             onChange={(e) => updateFlight(index, 'destination', e.target.value.toUpperCase())}
                             maxLength={3}
