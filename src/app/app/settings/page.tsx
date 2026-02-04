@@ -23,50 +23,49 @@ import {
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
+  const [mounted, setMounted] = useState(false)
   const [cronEnabled, setCronEnabled] = useState(true)
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [loading, setLoading] = useState(true)
   const [triggering, setTriggering] = useState(false)
   const [triggerResult, setTriggerResult] = useState<any>(null)
-  const [systemStats, setSystemStats] = useState<any>(null)
+  const [stats, setStats] = useState({
+    totalTrips: 0,
+    monitoringTrips: 0,
+    totalSavings: 0,
+    avgSavings: 0,
+    recentAlerts: 0
+  })
+
+  // Fix hydration issues
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (mounted && status === 'authenticated') {
       fetchData()
-    } else if (status !== 'loading') {
+    } else if (mounted && status !== 'loading') {
       setLoading(false)
     }
-  }, [status])
+  }, [mounted, status])
 
   const fetchData = async () => {
     try {
-      // Fetch real monitoring stats instead of mock data
       const response = await fetch('/api/monitoring/stats')
       if (response.ok) {
         const data = await response.json()
-        setSystemStats(data)
-        console.log('Real monitoring stats:', data) // Debug log
-      } else {
-        console.log('Failed to fetch monitoring stats, using defaults')
-        // Fallback to basic stats
-        setSystemStats({
-          totalTrips: 0,
-          monitoringTrips: 0,
-          totalSavings: 0,
-          avgSavings: 0,
-          recentAlerts: 0
+        setStats({
+          totalTrips: data.totalTrips || 0,
+          monitoringTrips: data.monitoringTrips || 0,
+          totalSavings: data.totalSavings || 0,
+          avgSavings: data.avgSavings || 0,
+          recentAlerts: data.recentAlerts || 0
         })
+        console.log('Fetched stats:', data)
       }
     } catch (error) {
-      console.error('Error fetching monitoring data:', error)
-      // Fallback stats
-      setSystemStats({
-        totalTrips: 0,
-        monitoringTrips: 0, 
-        totalSavings: 0,
-        avgSavings: 0,
-        recentAlerts: 0
-      })
+      console.error('Error fetching stats:', error)
     } finally {
       setLoading(false)
     }
@@ -88,9 +87,7 @@ export default function SettingsPage() {
         setTriggerResult(result)
         
         // Refresh data after manual run
-        setTimeout(() => {
-          fetchData()
-        }, 2000)
+        setTimeout(fetchData, 2000)
       }
     } catch (error) {
       console.error('Error triggering manual run:', error)
@@ -105,6 +102,11 @@ export default function SettingsPage() {
       currency: 'USD',
       minimumFractionDigits: 0
     }).format(amount || 0)
+  }
+
+  // Don't render anything until mounted (avoids hydration issues)
+  if (!mounted) {
+    return null
   }
 
   // Show login message if not authenticated
@@ -148,7 +150,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-6">
-            {/* System Overview - Now using REAL data */}
+            {/* System Overview */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -159,12 +161,12 @@ export default function SettingsPage() {
               <CardContent>
                 <div className="grid md:grid-cols-3 gap-6">
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{systemStats?.totalTrips || 0}</div>
+                    <div className="text-2xl font-bold">{stats.totalTrips}</div>
                     <div className="text-sm text-muted-foreground">Total Trips</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
-                      {formatCurrency(systemStats?.totalSavings || 0)}
+                      {formatCurrency(stats.totalSavings)}
                     </div>
                     <div className="text-sm text-muted-foreground">Total Savings</div>
                   </div>
@@ -173,15 +175,6 @@ export default function SettingsPage() {
                     <div className="text-sm text-muted-foreground mt-1">Monitoring Status</div>
                   </div>
                 </div>
-
-                {/* Debug info - remove this later */}
-                {systemStats && (
-                  <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded text-xs">
-                    <strong>Debug:</strong> Monitoring {systemStats.monitoringTrips || 0} trips, 
-                    Avg savings: {formatCurrency(systemStats.avgSavings || 0)}, 
-                    Recent alerts: {systemStats.recentAlerts || 0}
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -291,7 +284,7 @@ export default function SettingsPage() {
                 <div>
                   <Label>Monitoring Status</Label>
                   <div className="text-sm text-muted-foreground mt-1">
-                    {systemStats?.monitoringTrips || 0} active trips being monitored
+                    {stats.monitoringTrips} active trips being monitored
                   </div>
                 </div>
 
@@ -337,12 +330,10 @@ export default function SettingsPage() {
                     <Badge variant="default">Active</Badge>
                   </div>
 
-                  {systemStats?.lastCheck && (
-                    <div className="text-sm text-muted-foreground pt-2 border-t">
-                      Last check: {systemStats.lastCheck.successful || 0} successful, 
-                      {systemStats.lastCheck.errors || 0} errors
-                    </div>
-                  )}
+                  <div className="text-sm text-muted-foreground pt-2 border-t">
+                    <div>Recent Alerts: {stats.recentAlerts}</div>
+                    <div>Average Savings: {formatCurrency(stats.avgSavings)}</div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
