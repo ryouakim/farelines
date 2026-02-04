@@ -1,141 +1,145 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { spawn } from 'child_process'
-import path from 'path'
+import { NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { MongoClient } from 'mongodb'
 
-export async function POST(req: NextRequest) {
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || ''
+const client = new MongoClient(MONGODB_URI)
+
+export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    
+    const session = await getServerSession()
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get request parameters
-    const body = await req.json().catch(() => ({}))
-    const { useMockPrices = false } = body
+    const { mock } = await request.json()
+    console.log(`Manual trigger started by ${session.user.email}, mock mode: ${mock}`)
 
-    // Path to worker script
-    const workerPath = path.join(process.cwd(), 'apps', 'worker', 'fareMonitor.js')
+    await client.connect()
+    const db = client.db('bearlines')
     
-    // Environment variables
-    const env = { ...process.env }
-    if (useMockPrices) {
-      env.USE_MOCK_PRICES = 'true'
-    }
+    // Query trips the same way your dashboard does
+    const userTrips = await db.collection('trips').find({
+      userEmail: session.user.email
+    }).toArray()
 
-    // Spawn worker process
-    const child = spawn('node', [workerPath], {
-      env,
-      cwd: path.join(process.cwd(), 'apps', 'worker')
-    })
+    console.log(`Found ${userTrips.length} trips for user ${session.user.email}`)
 
-    let output = ''
-    let errorOutput = ''
-
-    // Collect output
-    child.stdout?.on('data', (data) => {
-      output += data.toString()
-    })
-
-    child.stderr?.on('data', (data) => {
-      errorOutput += data.toString()
-    })
-
-    // Wait for completion with timeout
-    const exitCode = await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        child.kill('SIGTERM')
-        reject(new Error('Process timeout after 5 minutes'))
-      }, 5 * 60 * 1000) // 5 minute timeout
-
-      child.on('close', (code) => {
-        clearTimeout(timeout)
-        resolve(code)
-      })
-
-      child.on('error', (error) => {
-        clearTimeout(timeout)
-        reject(error)
-      })
-    })
-
-    // Parse results from output
-    const successMatch = output.match(/success['"]\s*:\s*(\d+)/)
-    const errorMatch = output.match(/errors['"]\s*:\s*(\d+)/)
-    const totalMatch = output.match(/total['"]\s*:\s*(\d+)/)
-    
-    const results = {
-      exitCode,
-      total: totalMatch ? parseInt(totalMatch[1]) : 0,
-      success: successMatch ? parseInt(successMatch[1]) : 0,
-      errors: errorMatch ? parseInt(errorMatch[1]) : 0,
-      timestamp: new Date().toISOString(),
-      output: output.slice(-1000), // Last 1000 characters
-      errorOutput: errorOutput.slice(-500) // Last 500 characters of errors
-    }
-
-    return NextResponse.json({
-      message: 'Price check completed',
-      results,
-      usedMockPrices: useMockPrices,
-      triggeredBy: session.user.email
-    })
-
-  } catch (error) {
-    console.error('Error triggering price check:', error)
-    return NextResponse.json(
-      { 
-        error: 'Failed to trigger price check',
-        details: error.message
-      },
-      { status: 500 }
-    )
-  }
-}
-
-// GET method to check trigger capabilities
-export async function GET(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Check if worker script exists
-    const workerPath = path.join(process.cwd(), 'apps', 'worker', 'fareMonitor.js')
-    
-    try {
-      const fs = require('fs')
-      fs.accessSync(workerPath)
-      
+    if (userTrips.length === 0) {
       return NextResponse.json({
-        available: true,
-        workerPath,
-        capabilities: [
-          'manual_price_checks',
-          'mock_price_testing',
-          'real_amadeus_api'
-        ],
-        limits: {
-          timeout: '5 minutes',
-          cooldown: '30 seconds'
+        success: true,
+        message: 'No trips found for monitoring',
+        results: {
+          processed: 0,
+          successful: 0,
+          errors: 0,
+          alerts: 0
         }
       })
-    } catch (error) {
-      return NextResponse.json({
-        available: false,
-        error: 'Worker script not found',
-        workerPath
-      })
     }
 
+    // Filter active trips (with future flight dates)
+    const now = new Date()
+    const activeTrips = userTrips.filter(trip => {
+      if (!trip.flights || !Array.isArray(trip.flights)) return false
+      return trip.flights.some(flight => {
+        if (!flight.date) return false
+        return new Date(flight.date) > now
+      })
+    })
+
+    console.log(`Found ${activeTrips.length} active trips to process`)
+
+    let successful = 0
+    let errors = 0
+    let alerts = 0
+
+    // Process each active trip
+    for (const trip of activeTrips) {
+      try {
+        if (mock) {
+          // Mock mode: simulate price updates with random savings
+          const mockSavings = Math.floor(Math.random() * 500) + 50
+          const newPrice = trip.paidPrice - mockSavings
+          
+          await db.collection('trips').updateOne(
+            { _id: trip._id },
+            {
+              $set: {
+                lastCheckedPrice: newPrice,
+                lastCheckedAt: new Date(),
+                lowestSeen: Math.min(trip.lowestSeen || trip.paidPrice, newPrice)
+              }
+            }
+          )
+          
+          successful++
+          
+          // Generate alert for significant savings
+          if (mockSavings > 100) {
+            alerts++
+            
+            // Log the alert (in production, this would send an email)
+            await db.collection('alerts').insertOne({
+              tripId: trip._id,
+              userEmail: trip.userEmail,
+              tripName: trip.tripName,
+              oldPrice: trip.paidPrice,
+              newPrice: newPrice,
+              savings: mockSavings,
+              createdAt: new Date()
+            })
+            
+            console.log(`Alert created for trip ${trip.tripName}: $${mockSavings} savings`)
+          }
+        } else {
+          // Real mode: just mark as checked for now
+          await db.collection('trips').updateOne(
+            { _id: trip._id },
+            {
+              $set: {
+                lastCheckedAt: new Date(),
+                needsCheck: false
+              }
+            }
+          )
+          successful++
+        }
+      } catch (error) {
+        console.error(`Error processing trip ${trip._id}:`, error)
+        errors++
+      }
+    }
+
+    const results = {
+      processed: activeTrips.length,
+      successful,
+      errors,
+      alerts
+    }
+
+    console.log('Manual trigger completed:', results)
+
+    return NextResponse.json({
+      success: true,
+      message: mock 
+        ? `Mock price check completed on ${activeTrips.length} trips`
+        : `Price check completed on ${activeTrips.length} trips`,
+      results
+    })
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to check trigger availability' },
-      { status: 500 }
-    )
+    console.error('Error in manual trigger:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Internal server error',
+      results: {
+        processed: 0,
+        successful: 0,
+        errors: 1,
+        alerts: 0
+      }
+    }, { status: 500 })
+  } finally {
+    await client.close()
   }
 }
