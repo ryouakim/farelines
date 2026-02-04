@@ -21,15 +21,23 @@ import {
   Database
 } from 'lucide-react'
 
+interface StatsData {
+  totalTrips: number
+  monitoringTrips: number
+  totalSavings: number
+  avgSavings: number
+  recentAlerts: number
+}
+
 export default function SettingsPage() {
   const { data: session, status } = useSession()
-  const [mounted, setMounted] = useState(false)
+  const [isClient, setIsClient] = useState(false)
   const [cronEnabled, setCronEnabled] = useState(true)
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [loading, setLoading] = useState(true)
   const [triggering, setTriggering] = useState(false)
   const [triggerResult, setTriggerResult] = useState<any>(null)
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<StatsData>({
     totalTrips: 0,
     monitoringTrips: 0,
     totalSavings: 0,
@@ -37,18 +45,18 @@ export default function SettingsPage() {
     recentAlerts: 0
   })
 
-  // Fix hydration issues
+  // Ensure we're on the client side
   useEffect(() => {
-    setMounted(true)
+    setIsClient(true)
   }, [])
 
   useEffect(() => {
-    if (mounted && status === 'authenticated') {
+    if (isClient && status === 'authenticated') {
       fetchData()
-    } else if (mounted && status !== 'loading') {
+    } else if (isClient && status === 'unauthenticated') {
       setLoading(false)
     }
-  }, [mounted, status])
+  }, [isClient, status])
 
   const fetchData = async () => {
     try {
@@ -62,13 +70,11 @@ export default function SettingsPage() {
           avgSavings: data.avgSavings || 0,
           recentAlerts: data.recentAlerts || 0
         })
-        console.log('Fetched stats:', data)
       }
     } catch (error) {
       console.error('Error fetching stats:', error)
-    } finally {
-      setLoading(false)
     }
+    setLoading(false)
   }
 
   const triggerManualRun = async (mockMode = false) => {
@@ -85,8 +91,6 @@ export default function SettingsPage() {
       if (response.ok) {
         const result = await response.json()
         setTriggerResult(result)
-        
-        // Refresh data after manual run
         setTimeout(fetchData, 2000)
       }
     } catch (error) {
@@ -96,27 +100,13 @@ export default function SettingsPage() {
     }
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0
-    }).format(amount || 0)
-  }
-
-  // Don't render anything until mounted (avoids hydration issues)
-  if (!mounted) {
-    return null
-  }
-
-  // Show login message if not authenticated
-  if (status === 'unauthenticated') {
+  // Show nothing until client-side rendering is ready
+  if (!isClient) {
     return (
       <>
         <Header />
-        <div className="container mx-auto px-4 py-8 text-center">
-          <h1 className="text-2xl font-bold mb-4">Settings</h1>
-          <p className="text-muted-foreground">Please sign in to access settings.</p>
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">Loading...</div>
         </div>
       </>
     )
@@ -132,6 +122,18 @@ export default function SettingsPage() {
             <div className="h-32 bg-gray-200 rounded"></div>
             <div className="h-48 bg-gray-200 rounded"></div>
           </div>
+        </div>
+      </>
+    )
+  }
+
+  if (status === 'unauthenticated') {
+    return (
+      <>
+        <Header />
+        <div className="container mx-auto px-4 py-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Settings</h1>
+          <p className="text-muted-foreground">Please sign in to access settings.</p>
         </div>
       </>
     )
@@ -166,7 +168,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">
-                      {formatCurrency(stats.totalSavings)}
+                      ${stats.totalSavings.toLocaleString()}
                     </div>
                     <div className="text-sm text-muted-foreground">Total Savings</div>
                   </div>
@@ -178,7 +180,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Monitoring Controls */}
+            {/* Manual Controls */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -190,14 +192,10 @@ export default function SettingsPage() {
                 {/* Cron Status */}
                 <div className="flex items-center justify-between p-4 rounded-lg border">
                   <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      cronEnabled ? 'bg-green-500' : 'bg-gray-400'
-                    }`}></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
                     <div>
                       <div className="font-medium">Automatic Price Checking</div>
-                      <div className="text-sm text-muted-foreground">
-                        {cronEnabled ? 'Running every 6 hours' : 'Disabled'}
-                      </div>
+                      <div className="text-sm text-muted-foreground">Running every 6 hours</div>
                     </div>
                   </div>
                   <Switch
@@ -212,7 +210,7 @@ export default function SettingsPage() {
                     <Zap className="h-4 w-4" />
                     Manual Controls
                   </h4>
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex gap-3">
                     <Button 
                       onClick={() => triggerManualRun(false)}
                       disabled={triggering}
@@ -232,32 +230,18 @@ export default function SettingsPage() {
                       variant="outline"
                       className="flex items-center gap-2"
                     >
-                      {triggering ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Play className="h-4 w-4" />
-                      )}
-                      Test with Mock Data
+                      Test Mock Data
                     </Button>
                   </div>
 
-                  {/* Trigger Result */}
                   {triggerResult && (
-                    <div className="mt-4 p-3 rounded-lg border border-green-200 bg-green-50 dark:bg-green-900/20">
+                    <div className="mt-4 p-3 rounded-lg border border-green-200 bg-green-50">
                       <div className="flex items-center gap-2 mb-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
-                        <span className="font-medium text-green-800 dark:text-green-200">
-                          Manual Check Complete
-                        </span>
+                        <span className="font-medium text-green-800">Manual Check Complete</span>
                       </div>
-                      <div className="text-sm text-green-700 dark:text-green-300 space-y-1">
-                        <div>Processed: {triggerResult.results?.processed || 0} trips</div>
-                        <div>Successful: {triggerResult.results?.successful || 0}</div>
-                        {(triggerResult.results?.alerts || 0) > 0 && (
-                          <div className="font-medium">
-                            🎉 Generated {triggerResult.results?.alerts} new alerts!
-                          </div>
-                        )}
+                      <div className="text-sm text-green-700">
+                        Processed: {triggerResult.results?.processed || 0} trips
                       </div>
                     </div>
                   )}
@@ -290,13 +274,12 @@ export default function SettingsPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label htmlFor="email-alerts">Email Alerts</Label>
+                    <Label>Email Alerts</Label>
                     <p className="text-sm text-muted-foreground">
                       Get notified when flight prices drop
                     </p>
                   </div>
                   <Switch
-                    id="email-alerts"
                     checked={emailAlerts}
                     onCheckedChange={setEmailAlerts}
                   />
@@ -328,11 +311,6 @@ export default function SettingsPage() {
                       <span>Price Monitoring Worker</span>
                     </div>
                     <Badge variant="default">Active</Badge>
-                  </div>
-
-                  <div className="text-sm text-muted-foreground pt-2 border-t">
-                    <div>Recent Alerts: {stats.recentAlerts}</div>
-                    <div>Average Savings: {formatCurrency(stats.avgSavings)}</div>
                   </div>
                 </div>
               </CardContent>
