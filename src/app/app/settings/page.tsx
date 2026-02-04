@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,7 +23,6 @@ import {
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
-  const router = useRouter()
   const [cronEnabled, setCronEnabled] = useState(true)
   const [emailAlerts, setEmailAlerts] = useState(true)
   const [loading, setLoading] = useState(true)
@@ -33,22 +31,42 @@ export default function SettingsPage() {
   const [systemStats, setSystemStats] = useState<any>(null)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-    } else if (status === 'authenticated') {
+    if (status === 'authenticated') {
       fetchData()
+    } else if (status !== 'loading') {
+      setLoading(false)
     }
-  }, [status, router])
+  }, [status])
 
   const fetchData = async () => {
     try {
+      // Fetch real monitoring stats instead of mock data
       const response = await fetch('/api/monitoring/stats')
       if (response.ok) {
         const data = await response.json()
         setSystemStats(data)
+        console.log('Real monitoring stats:', data) // Debug log
+      } else {
+        console.log('Failed to fetch monitoring stats, using defaults')
+        // Fallback to basic stats
+        setSystemStats({
+          totalTrips: 0,
+          monitoringTrips: 0,
+          totalSavings: 0,
+          avgSavings: 0,
+          recentAlerts: 0
+        })
       }
     } catch (error) {
-      console.error('Error fetching data:', error)
+      console.error('Error fetching monitoring data:', error)
+      // Fallback stats
+      setSystemStats({
+        totalTrips: 0,
+        monitoringTrips: 0, 
+        totalSavings: 0,
+        avgSavings: 0,
+        recentAlerts: 0
+      })
     } finally {
       setLoading(false)
     }
@@ -86,7 +104,20 @@ export default function SettingsPage() {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0
-    }).format(amount)
+    }).format(amount || 0)
+  }
+
+  // Show login message if not authenticated
+  if (status === 'unauthenticated') {
+    return (
+      <>
+        <Header />
+        <div className="container mx-auto px-4 py-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Settings</h1>
+          <p className="text-muted-foreground">Please sign in to access settings.</p>
+        </div>
+      </>
+    )
   }
 
   if (status === 'loading' || loading) {
@@ -117,7 +148,7 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-6">
-            {/* System Overview */}
+            {/* System Overview - Now using REAL data */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -142,6 +173,15 @@ export default function SettingsPage() {
                     <div className="text-sm text-muted-foreground mt-1">Monitoring Status</div>
                   </div>
                 </div>
+
+                {/* Debug info - remove this later */}
+                {systemStats && (
+                  <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded text-xs">
+                    <strong>Debug:</strong> Monitoring {systemStats.monitoringTrips || 0} trips, 
+                    Avg savings: {formatCurrency(systemStats.avgSavings || 0)}, 
+                    Recent alerts: {systemStats.recentAlerts || 0}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -232,31 +272,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            {/* Notification Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bell className="h-5 w-5" />
-                  Notifications
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="email-alerts">Email Alerts</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified when flight prices drop
-                    </p>
-                  </div>
-                  <Switch
-                    id="email-alerts"
-                    checked={emailAlerts}
-                    onCheckedChange={setEmailAlerts}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Account Info */}
             <Card>
               <CardHeader>
@@ -269,7 +284,7 @@ export default function SettingsPage() {
                 <div>
                   <Label>Email Address</Label>
                   <div className="text-sm text-muted-foreground mt-1">
-                    {session?.user?.email}
+                    {session?.user?.email || 'Not available'}
                   </div>
                 </div>
                 
@@ -278,6 +293,20 @@ export default function SettingsPage() {
                   <div className="text-sm text-muted-foreground mt-1">
                     {systemStats?.monitoringTrips || 0} active trips being monitored
                   </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="email-alerts">Email Alerts</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Get notified when flight prices drop
+                    </p>
+                  </div>
+                  <Switch
+                    id="email-alerts"
+                    checked={emailAlerts}
+                    onCheckedChange={setEmailAlerts}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -308,13 +337,12 @@ export default function SettingsPage() {
                     <Badge variant="default">Active</Badge>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                      <span>Email Service</span>
+                  {systemStats?.lastCheck && (
+                    <div className="text-sm text-muted-foreground pt-2 border-t">
+                      Last check: {systemStats.lastCheck.successful || 0} successful, 
+                      {systemStats.lastCheck.errors || 0} errors
                     </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
