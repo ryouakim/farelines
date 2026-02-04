@@ -1,5 +1,6 @@
 'use client'
 
+import { PriceMonitoringCard } from '@/components/dashboard/price-monitoring-card'
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -199,58 +200,27 @@ export default function DashboardPage() {
           {/* Welcome Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              Welcome back, {session?.user?.name?.split(' ')[0] || 'there'}!
+              Welcome back, {session?.user?.name?.split(' ')[0]}!
             </h1>
             <p className="text-muted-foreground text-lg">
-              Track your flights and never miss a price drop
+              Track your flights and save money on rebookings
             </p>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {/* Overview Cards */}
+          <div className="grid md:grid-cols-4 gap-4 mb-8">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Trips</p>
-                    <p className="text-2xl font-bold">{activeTrips.length || 0}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Active flights</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Plane className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Monitoring</p>
-                    <p className="text-2xl font-bold">{totalActiveMonitoring || 0}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Price tracking</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center">
-                    <Clock className="h-6 w-6 text-blue-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Savings</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(totalSavings || 0)}
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Total Trips
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">Potential</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {trips.length}
+                    </p>
                   </div>
-                  <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <DollarSign className="h-6 w-6 text-green-600" />
-                  </div>
+                  <Plane className="h-8 w-8 text-muted-foreground" />
                 </div>
               </CardContent>
             </Card>
@@ -259,30 +229,73 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Avg. Savings</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(avgSavings || 0)}
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Active Monitoring
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">Per trip</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {totalActiveMonitoring}
+                    </p>
                   </div>
-                  <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <TrendingDown className="h-6 w-6 text-green-600" />
+                  <RefreshCw className="h-8 w-8 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Potential Savings
+                    </p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {formatCurrency(totalSavings)}
+                    </p>
                   </div>
+                  <TrendingDown className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Avg. Savings
+                    </p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {formatCurrency(avgSavings)}
+                    </p>
+                  </div>
+                  <DollarSign className="h-8 w-8 text-green-600" />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Active Trips Section */}
+          {/* Price Monitoring Card */}
           <div className="mb-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-semibold">Your Trips</h2>
-              <div className="flex gap-2 w-full sm:w-auto">
+            <PriceMonitoringCard />
+          </div>
+
+          {/* Active Trips */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold text-foreground">
+                Active Trips
+                {activeTrips.length > 0 && (
+                  <span className="ml-2 text-lg text-muted-foreground">
+                    ({activeTrips.length})
+                  </span>
+                )}
+              </h2>
+              <div className="flex gap-2">
                 <Button
-                  variant="outline"
                   onClick={refreshAllTrips}
                   disabled={refreshing}
-                  className="flex-1 sm:flex-initial"
+                  variant="outline"
+                  size="sm"
                 >
                   {refreshing ? (
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -291,30 +304,25 @@ export default function DashboardPage() {
                   )}
                   Refresh All
                 </Button>
-                <Link href="/app/trips/new" className="flex-1 sm:flex-initial">
-                  <Button className="w-full">
+                <Link href="/app/trips/new">
+                  <Button size="sm">
                     <Plus className="mr-2 h-4 w-4" />
                     Add Trip
-                    <span className="ml-2 text-xs opacity-70 hidden sm:inline">(⌘N)</span>
                   </Button>
                 </Link>
               </div>
             </div>
 
             {activeTrips.length === 0 ? (
-              <Card>
-                <CardContent className="text-center py-16">
-                  <div className="mb-4">
-                    <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                      <Plane className="h-10 w-10 text-primary" />
-                    </div>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">No active trips</h3>
-                  <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                    Add your first trip to start tracking prices and saving money on flights
+              <Card className="text-center py-12">
+                <CardContent>
+                  <Plane className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No active trips</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Add your first trip to start monitoring flight prices
                   </p>
                   <Link href="/app/trips/new">
-                    <Button size="lg">
+                    <Button>
                       <Plus className="mr-2 h-4 w-4" />
                       Add Your First Trip
                     </Button>
@@ -322,7 +330,7 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeTrips.map((trip) => {
                   const savings = trip.lastCheckedPrice && trip.lastCheckedPrice < trip.paidPrice 
                     ? trip.paidPrice - trip.lastCheckedPrice 
