@@ -1,9 +1,8 @@
-// File: src/app/api/admin/cron/status/route.ts
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { MongoClient } from 'mongodb'
 
-const MONGODB_URI = process.env.MONGODB_URI || ''
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || ''
 const client = new MongoClient(MONGODB_URI)
 
 export async function GET(request: Request) {
@@ -47,53 +46,6 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error('Error fetching cron status:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  } finally {
-    await client.close()
-  }
-}
-
-// File: src/app/api/admin/cron/toggle/route.ts
-export async function POST(request: Request) {
-  try {
-    const session = await getServerSession()
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { enabled } = await request.json()
-    
-    await client.connect()
-    const db = client.db('bearlines')
-    
-    // Update system status
-    await db.collection('system_status').updateOne(
-      { component: 'cron_scheduler' },
-      { 
-        $set: { 
-          component: 'cron_scheduler',
-          enabled: enabled,
-          updatedAt: new Date(),
-          updatedBy: session.user.email
-        }
-      },
-      { upsert: true }
-    )
-
-    // Log the action
-    await db.collection('system_logs').insertOne({
-      action: enabled ? 'cron_enabled' : 'cron_disabled',
-      user: session.user.email,
-      timestamp: new Date(),
-      details: { enabled }
-    })
-
-    return NextResponse.json({ 
-      success: true,
-      message: `Cron scheduler ${enabled ? 'enabled' : 'disabled'}`
-    })
-  } catch (error) {
-    console.error('Error toggling cron:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   } finally {
     await client.close()
