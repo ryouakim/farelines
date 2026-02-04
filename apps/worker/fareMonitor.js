@@ -1,7 +1,7 @@
 // apps/worker/fareMonitor-amadeus.js
 // Updated fare monitoring with Amadeus API integration
 
-require('dotenv').config();
+require('dotenv').config({ path: '../../.env.local' });
 const { MongoClient, ObjectId } = require('mongodb');
 const config = require('./config');
 const logger = require('./logger');

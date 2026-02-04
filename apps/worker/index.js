@@ -1,7 +1,7 @@
 // apps/worker/index.js
 // Entry point for running the worker
 
-require('dotenv').config();
+require('dotenv').config({ path: '../../.env.local' });
 const { runWorker } = require('./fareMonitor');
 
 // For Vercel Cron Jobs - export as serverless function
