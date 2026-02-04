@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Separator } from '@/components/ui/separator'
 import { 
   ArrowLeft,
   Edit,
@@ -54,31 +53,6 @@ const formatDateTime = (dateString: string) => {
   })
 }
 
-interface Flight {
-  flightNumber: string
-  date: string
-  origin: string
-  destination: string
-  departureTimeLocal?: string
-  carrier?: string
-}
-
-interface Trip {
-  _id: string
-  tripName: string
-  paidPrice: number
-  fareType: string
-  recordLocator?: string
-  googleFlightsUrl?: string
-  lastCheckedPrice?: number
-  lastCheckedAt?: string
-  lowestSeen?: number
-  flights: Flight[]
-  createdAt: string
-  updatedAt: string
-  thresholdUsd?: number
-}
-
 interface TripDetailPageProps {
   params: {
     id: string
@@ -88,7 +62,7 @@ interface TripDetailPageProps {
 export default function TripDetailPage({ params }: TripDetailPageProps) {
   const router = useRouter()
   const { data: session, status } = useSession()
-  const [trip, setTrip] = useState<Trip | null>(null)
+  const [trip, setTrip] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(false)
 
@@ -117,9 +91,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
   }
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this trip? This action cannot be undone.')) {
-      return
-    }
+    if (!confirm('Are you sure you want to delete this trip?')) return
 
     setDeleting(true)
     try {
@@ -130,11 +102,11 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
       if (response.ok) {
         router.push('/app')
       } else {
-        alert('Failed to delete trip. Please try again.')
+        alert('Failed to delete trip.')
       }
     } catch (error) {
       console.error('Error deleting trip:', error)
-      alert('Failed to delete trip. Please try again.')
+      alert('Failed to delete trip.')
     } finally {
       setDeleting(false)
     }
@@ -149,14 +121,9 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
           <Card>
             <CardHeader>
               <Skeleton className="h-8 w-64" />
-              <Skeleton className="h-4 w-32" />
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <Skeleton className="h-32" />
-                <Skeleton className="h-24" />
-                <Skeleton className="h-16" />
-              </div>
+              <Skeleton className="h-32" />
             </CardContent>
           </Card>
         </div>
@@ -179,9 +146,6 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
             <CardContent>
               <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Trip Not Found</h3>
-              <p className="text-muted-foreground mb-4">
-                The trip you're looking for doesn't exist or has been deleted.
-              </p>
               <Link href="/app">
                 <Button>Go to Dashboard</Button>
               </Link>
@@ -200,7 +164,6 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
       <Header />
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
-          {/* Navigation */}
           <Link href="/app">
             <Button variant="ghost" className="mb-6">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -228,12 +191,6 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Link href={`/app/trips/${params.id}/edit`}>
-                    <Button variant="outline" size="sm">
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                  </Link>
                   <Button 
                     variant="destructive" 
                     size="sm"
@@ -252,7 +209,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
                 <div className="text-center p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
                   <div className="text-sm text-muted-foreground mb-1">Paid Price</div>
                   <div className="text-2xl font-bold">
-                    {formatCurrency(trip.paidPrice)}
+                    {formatCurrency(trip.paidPrice || 0)}
                   </div>
                 </div>
                 
@@ -265,7 +222,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
                 
                 <div className="text-center p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
                   <div className="text-sm text-muted-foreground mb-1">
-                    {savings >= 0 ? 'Potential Savings' : 'Price Increase'}
+                    {savings >= 0 ? 'Savings' : 'Increase'}
                   </div>
                   <div className={`text-2xl font-bold flex items-center justify-center gap-1 ${
                     savings >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'
@@ -286,19 +243,17 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
               </div>
 
               {/* Last Check Status */}
-              <div className="flex items-center justify-between p-3 rounded-lg border">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Last Checked:</span>
+              {trip.lastCheckedAt && (
+                <div className="flex items-center justify-between p-3 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Last Checked:</span>
+                  </div>
+                  <div className="text-sm">
+                    {formatDateTime(trip.lastCheckedAt)}
+                  </div>
                 </div>
-                <div className="text-sm">
-                  {trip.lastCheckedAt ? (
-                    formatDateTime(trip.lastCheckedAt)
-                  ) : (
-                    'Never checked'
-                  )}
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
@@ -313,40 +268,37 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
             <CardContent>
               {trip.flights && trip.flights.length > 0 ? (
                 <div className="space-y-4">
-                  {trip.flights.map((flight, index) => (
-                    <div key={index}>
-                      {index > 0 && <Separator className="my-4" />}
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{flight.origin}</span>
-                            </div>
-                            <span className="text-muted-foreground">→</span>
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-medium">{flight.destination}</span>
-                            </div>
+                  {trip.flights.map((flight: any, index: number) => (
+                    <div key={index} className="p-4 rounded-lg border bg-gray-50 dark:bg-gray-800">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-lg">{flight.origin || 'XXX'}</span>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="text-muted-foreground text-lg">→</span>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium text-lg">{flight.destination || 'XXX'}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {flight.date ? formatDate(flight.date) : 'TBD'}
+                          </div>
+                          {flight.flightNumber && (
                             <div className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {formatDate(flight.date)}
+                              <Plane className="h-4 w-4" />
+                              {flight.flightNumber}
                             </div>
-                            {flight.flightNumber && (
-                              <div className="flex items-center gap-1">
-                                <Plane className="h-3 w-3" />
-                                {flight.flightNumber}
-                              </div>
-                            )}
-                            {flight.departureTimeLocal && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {flight.departureTimeLocal}
-                              </div>
-                            )}
-                          </div>
+                          )}
+                          {flight.departureTimeLocal && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {flight.departureTimeLocal}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -360,10 +312,10 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
             </CardContent>
           </Card>
 
-          {/* Settings & Actions */}
+          {/* Trip Information */}
           <Card>
             <CardHeader>
-              <CardTitle>Trip Settings</CardTitle>
+              <CardTitle>Trip Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {trip.thresholdUsd && (
@@ -375,12 +327,9 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
               
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Created</span>
-                <span className="font-medium">{formatDate(trip.createdAt)}</span>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Last Updated</span>
-                <span className="font-medium">{formatDate(trip.updatedAt)}</span>
+                <span className="font-medium">
+                  {trip.createdAt ? formatDate(trip.createdAt) : 'Unknown'}
+                </span>
               </div>
 
               {trip.googleFlightsUrl && (
@@ -389,7 +338,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
                     href={trip.googleFlightsUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 dark:text-blue-400"
                   >
                     <ExternalLink className="h-4 w-4" />
                     View on Google Flights
