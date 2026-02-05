@@ -184,10 +184,12 @@ export default function AboutPage() {
               no credit card required.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" variant="secondary" className="text-gray-500 bg-gray-200 cursor-not-allowed" disabled>
-                Start Free Trial
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
+              <Link href="/auth/signin">
+                <Button size="lg" variant="secondary" className="text-primary-900">
+                  Start Free Trial
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
               <Link href="/contact">
                 <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
                   Contact Us
