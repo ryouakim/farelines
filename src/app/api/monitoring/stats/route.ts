@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
+import { MongoClient } from 'mongodb'
+
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || ''
 
 export async function GET(request: Request) {
   try {
@@ -8,43 +11,34 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Instead of direct MongoDB, use the existing /api/trips endpoint
-    const baseUrl = request.headers.get('host')
-    const protocol = request.headers.get('x-forwarded-proto') || 'https'
-    
+    // Connect directly to MongoDB for accurate stats
+    const client = await MongoClient.connect(MONGODB_URI)
+    const db = client.db(process.env.MONGODB_DB || 'bearlines')
+
     try {
-      const tripsResponse = await fetch(`${protocol}://${baseUrl}/api/trips`, {
-        headers: {
-          'Cookie': request.headers.get('Cookie') || ''
-        }
-      })
-      
-      if (!tripsResponse.ok) {
-        throw new Error('Failed to fetch trips')
-      }
-      
-      const tripsData = await tripsResponse.json()
-      const trips = tripsData.trips || []
-      
-      // Calculate statistics from the existing trip data
+      // Get user's trips directly from database
+      const trips = await db.collection('trips').find({
+        userEmail: session.user.email
+      }).toArray()
+
       const totalTrips = trips.length
       const now = new Date()
-      
-      // Filter active trips (future dates)
-      const activeTrips = trips.filter((trip: any) => {
+
+      // Filter active trips (with future flight dates)
+      const activeTrips = trips.filter(trip => {
         if (!trip.flights || !Array.isArray(trip.flights)) return false
-        return trip.flights.some((flight: any) => {
+        return trip.flights.some(flight => {
           if (!flight.date) return false
           return new Date(flight.date) > now
         })
       })
-      
+
       const monitoringTrips = activeTrips.length
-      
-      // Calculate total savings
+
+      // Calculate total savings from actual price data
       let totalSavings = 0
       let savingsCount = 0
-      
+
       trips.forEach((trip: any) => {
         if (trip.paidPrice && trip.lastCheckedPrice && trip.lastCheckedPrice > 0) {
           const savings = trip.paidPrice - trip.lastCheckedPrice
@@ -54,58 +48,74 @@ export async function GET(request: Request) {
           }
         }
       })
-      
+
       const avgSavings = savingsCount > 0 ? totalSavings / savingsCount : 0
-      
-      // Mock recent alerts for now
-      const recentAlerts = Math.min(savingsCount, 5)
-      
+
+      // Get recent alerts count
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const recentAlertsCount = await db.collection('alerts').countDocuments({
+        userEmail: session.user.email,
+        createdAt: { $gte: oneDayAgo }
+      })
+
+      // Get last check timestamp
+      let lastCheckTimestamp = null
+      const lastCheckedTrip = trips
+        .filter((t: any) => t.lastCheckedAt)
+        .sort((a: any, b: any) => new Date(b.lastCheckedAt).getTime() - new Date(a.lastCheckedAt).getTime())[0]
+
+      if (lastCheckedTrip) {
+        lastCheckTimestamp = lastCheckedTrip.lastCheckedAt
+      }
+
+      await client.close()
+
       return NextResponse.json({
         totalTrips,
         monitoringTrips,
         totalSavings: Math.round(totalSavings),
         avgSavings: Math.round(avgSavings),
-        recentAlerts,
+        recentAlerts: recentAlertsCount,
         lastCheck: {
-          timestamp: new Date().toISOString(),
+          timestamp: lastCheckTimestamp || new Date().toISOString(),
           successful: monitoringTrips,
-          errors: totalTrips - monitoringTrips,
+          errors: 0,
           totalChecked: totalTrips
         }
       })
-    } catch (fetchError) {
-      console.error('Error fetching trips:', fetchError)
-      
-      // Return mock data that matches your actual stats
+    } catch (dbError) {
+      console.error('Database error:', dbError)
+      await client.close()
+
+      // Return zero stats on error
       return NextResponse.json({
-        totalTrips: 9,
-        monitoringTrips: 3,
-        totalSavings: 5918,
-        avgSavings: 1480,
-        recentAlerts: 4,
+        totalTrips: 0,
+        monitoringTrips: 0,
+        totalSavings: 0,
+        avgSavings: 0,
+        recentAlerts: 0,
         lastCheck: {
           timestamp: new Date().toISOString(),
-          successful: 7,
-          errors: 2,
-          totalChecked: 9
+          successful: 0,
+          errors: 0,
+          totalChecked: 0
         }
       })
     }
   } catch (error) {
     console.error('Error in monitoring stats:', error)
-    
-    // Final fallback with your actual numbers
+
     return NextResponse.json({
-      totalTrips: 9,
-      monitoringTrips: 3,
-      totalSavings: 5918,
-      avgSavings: 1480,
-      recentAlerts: 4,
+      totalTrips: 0,
+      monitoringTrips: 0,
+      totalSavings: 0,
+      avgSavings: 0,
+      recentAlerts: 0,
       lastCheck: {
         timestamp: new Date().toISOString(),
-        successful: 7,
-        errors: 2,
-        totalChecked: 9
+        successful: 0,
+        errors: 0,
+        totalChecked: 0
       }
     })
   }
