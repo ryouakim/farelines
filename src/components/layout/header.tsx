@@ -47,10 +47,10 @@ export function Header() {
           <Link href="/" className="flex items-center space-x-2">
             <div className="flex items-center space-x-2">
               <div className="relative">
-                <Plane className="h-6 w-6 text-primary-600 rotate-45" />
-                <div className="absolute -bottom-1 -right-1 h-2 w-2 bg-secondary rounded-full" />
+                <Plane className="h-6 w-6 text-sky-500 rotate-45" />
+                <div className="absolute -bottom-1 -right-1 h-2 w-2 bg-sky-300 rounded-full" />
               </div>
-              <span className="text-xl font-bold text-primary-900 dark:text-white">
+              <span className="text-xl font-bold text-gray-900 dark:text-white">
                 Farelines
               </span>
             </div>
@@ -65,10 +65,10 @@ export function Header() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "text-sm font-medium transition-colors hover:text-primary",
+                      "text-sm font-medium transition-colors hover:text-sky-500",
                       pathname === item.href
-                        ? "text-primary"
-                        : "text-muted-foreground"
+                        ? "text-sky-500"
+                        : "text-gray-600 dark:text-gray-300"
                     )}
                   >
                     {item.label}
@@ -82,10 +82,10 @@ export function Header() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center space-x-1 text-sm font-medium transition-colors hover:text-primary",
+                      "flex items-center space-x-1 text-sm font-medium transition-colors hover:text-sky-500",
                       pathname === item.href
-                        ? "text-primary"
-                        : "text-muted-foreground"
+                        ? "text-sky-500"
+                        : "text-gray-600 dark:text-gray-300"
                     )}
                   >
                     {item.icon && <item.icon className="h-4 w-4" />}
@@ -111,22 +111,22 @@ export function Header() {
                       className="h-8 w-8 rounded-full"
                     />
                   ) : (
-                    <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-                      <User className="h-4 w-4 text-primary-600" />
+                    <div className="h-8 w-8 rounded-full bg-sky-100 dark:bg-sky-500/20 flex items-center justify-center">
+                      <User className="h-4 w-4 text-sky-600 dark:text-sky-400" />
                     </div>
                   )}
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                 </button>
 
                 {userMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white dark:bg-gray-900 shadow-lg border">
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white dark:bg-slate-800 shadow-lg border dark:border-slate-700">
                     <div className="p-2">
-                      <div className="px-3 py-2 text-sm text-muted-foreground">
+                      <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
                         {session.user?.email}
                       </div>
                       <Link
                         href="/app/settings"
-                        className="flex items-center space-x-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+                        className="flex items-center space-x-2 rounded-md px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700"
                         onClick={() => setUserMenuOpen(false)}
                       >
                         <Settings className="h-4 w-4" />
@@ -137,7 +137,7 @@ export function Header() {
                           setUserMenuOpen(false)
                           signOut({ callbackUrl: '/' })
                         }}
-                        className="flex w-full items-center space-x-2 rounded-md px-3 py-2 text-sm hover:bg-accent text-left"
+                        className="flex w-full items-center space-x-2 rounded-md px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 text-left"
                       >
                         <LogOut className="h-4 w-4" />
                         <span>Sign Out</span>
@@ -177,7 +177,7 @@ export function Header() {
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <nav className="md:hidden border-t py-4">
+          <nav className="md:hidden border-t dark:border-slate-700 py-4">
             {isPublicPage ? (
               <>
                 {publicNavItems.map((item) => (
@@ -187,8 +187,8 @@ export function Header() {
                     className={cn(
                       "block py-2 text-sm font-medium",
                       pathname === item.href
-                        ? "text-primary"
-                        : "text-muted-foreground"
+                        ? "text-sky-500"
+                        : "text-gray-600 dark:text-gray-300"
                     )}
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -205,8 +205,8 @@ export function Header() {
                     className={cn(
                       "flex items-center space-x-2 py-2 text-sm font-medium",
                       pathname === item.href
-                        ? "text-primary"
-                        : "text-muted-foreground"
+                        ? "text-sky-500"
+                        : "text-gray-600 dark:text-gray-300"
                     )}
                     onClick={() => setMobileMenuOpen(false)}
                   >

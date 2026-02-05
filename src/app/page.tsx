@@ -58,24 +58,24 @@ export default function HomePage() {
         </section>
 
         {/* Stats Section */}
-        <section className="py-12 bg-gray-50 dark:bg-gray-900/50">
+        <section className="py-12 bg-gray-50 dark:bg-slate-800/50">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
               <div>
-                <div className="text-3xl font-bold text-primary-600">$2.5M+</div>
-                <div className="text-sm text-muted-foreground mt-1">Saved by Users</div>
+                <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">$2.5M+</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">Saved by Users</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-primary-600">50K+</div>
-                <div className="text-sm text-muted-foreground mt-1">Trips Monitored</div>
+                <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">50K+</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">Trips Monitored</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-primary-600">24/7</div>
-                <div className="text-sm text-muted-foreground mt-1">Price Monitoring</div>
+                <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">24/7</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">Price Monitoring</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-primary-600">$350</div>
-                <div className="text-sm text-muted-foreground mt-1">Avg. Savings/Trip</div>
+                <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">$350</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">Avg. Savings/Trip</div>
               </div>
             </div>
           </div>
@@ -94,46 +94,46 @@ export default function HomePage() {
             </div>
 
             <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              <Card className="text-center relative">
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold">
+              <Card className="text-center relative dark:bg-slate-800 dark:border-slate-700">
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center font-bold">
                   1
                 </div>
                 <CardContent className="pt-10 pb-6">
-                  <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/20">
-                    <Search className="h-7 w-7 text-primary-600" />
+                  <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-sky-500/20">
+                    <Search className="h-7 w-7 text-primary-600 dark:text-sky-400" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">Connect Your Trip</h3>
-                  <p className="text-muted-foreground">
+                  <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Connect Your Trip</h3>
+                  <p className="text-gray-600 dark:text-gray-300">
                     Add your flight details by uploading your confirmation or pasting your Google Flights URL
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="text-center relative">
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold">
+              <Card className="text-center relative dark:bg-slate-800 dark:border-slate-700">
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center font-bold">
                   2
                 </div>
                 <CardContent className="pt-10 pb-6">
-                  <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/20">
-                    <BarChart3 className="h-7 w-7 text-primary-600" />
+                  <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-sky-500/20">
+                    <BarChart3 className="h-7 w-7 text-primary-600 dark:text-sky-400" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">We Monitor Prices</h3>
-                  <p className="text-muted-foreground">
+                  <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">We Monitor Prices</h3>
+                  <p className="text-gray-600 dark:text-gray-300">
                     Our system checks prices 24/7 for the exact same fare type you booked
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="text-center relative">
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-primary-600 text-white rounded-full flex items-center justify-center font-bold">
+              <Card className="text-center relative dark:bg-slate-800 dark:border-slate-700">
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 bg-sky-500 text-white rounded-full flex items-center justify-center font-bold">
                   3
                 </div>
                 <CardContent className="pt-10 pb-6">
-                  <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-primary-900/20">
-                    <Bell className="h-7 w-7 text-primary-600" />
+                  <div className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary-100 dark:bg-sky-500/20">
+                    <Bell className="h-7 w-7 text-primary-600 dark:text-sky-400" />
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">Get Price Drop Alerts</h3>
-                  <p className="text-muted-foreground">
+                  <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Get Price Drop Alerts</h3>
+                  <p className="text-gray-600 dark:text-gray-300">
                     Receive instant notifications when prices drop so you can claim your refund
                   </p>
                 </CardContent>
@@ -143,13 +143,13 @@ export default function HomePage() {
         </section>
 
         {/* Features */}
-        <section className="py-20 bg-gray-50 dark:bg-gray-900/50">
+        <section className="py-20 bg-gray-50 dark:bg-slate-800/50">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white sm:text-4xl mb-4">
                 Everything You Need to Save
               </h2>
-              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+              <p className="text-lg text-gray-600 dark:text-gray-200 max-w-2xl mx-auto">
                 Powerful features designed to maximize your savings on every flight
               </p>
             </div>
@@ -157,13 +157,13 @@ export default function HomePage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               <div className="flex space-x-4">
                 <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center">
-                    <TrendingDown className="h-5 w-5 text-primary-600" />
+                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-sky-500/20 flex items-center justify-center">
+                    <TrendingDown className="h-5 w-5 text-primary-600 dark:text-sky-400" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1">Real-Time Tracking</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="font-semibold mb-1 text-gray-900 dark:text-white">Real-Time Tracking</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
                     Continuous monitoring of your exact fare class across all booking sites
                   </p>
                 </div>
@@ -171,13 +171,13 @@ export default function HomePage() {
 
               <div className="flex space-x-4">
                 <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center">
-                    <Bell className="h-5 w-5 text-primary-600" />
+                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-sky-500/20 flex items-center justify-center">
+                    <Bell className="h-5 w-5 text-primary-600 dark:text-sky-400" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1">Instant Alerts</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="font-semibold mb-1 text-gray-900 dark:text-white">Instant Alerts</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
                     Get notified immediately via email when prices drop below your threshold
                   </p>
                 </div>
@@ -185,13 +185,13 @@ export default function HomePage() {
 
               <div className="flex space-x-4">
                 <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center">
-                    <DollarSign className="h-5 w-5 text-primary-600" />
+                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-sky-500/20 flex items-center justify-center">
+                    <DollarSign className="h-5 w-5 text-primary-600 dark:text-sky-400" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1">Refund Guidance</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="font-semibold mb-1 text-gray-900 dark:text-white">Refund Guidance</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
                     Step-by-step instructions on claiming your airline credit or refund
                   </p>
                 </div>
@@ -199,13 +199,13 @@ export default function HomePage() {
 
               <div className="flex space-x-4">
                 <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center">
-                    <Shield className="h-5 w-5 text-primary-600" />
+                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-sky-500/20 flex items-center justify-center">
+                    <Shield className="h-5 w-5 text-primary-600 dark:text-sky-400" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1">Secure & Private</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="font-semibold mb-1 text-gray-900 dark:text-white">Secure & Private</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
                     Bank-level encryption and we never store payment information
                   </p>
                 </div>
@@ -213,13 +213,13 @@ export default function HomePage() {
 
               <div className="flex space-x-4">
                 <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center">
-                    <BarChart3 className="h-5 w-5 text-primary-600" />
+                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-sky-500/20 flex items-center justify-center">
+                    <BarChart3 className="h-5 w-5 text-primary-600 dark:text-sky-400" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1">Price History</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="font-semibold mb-1 text-gray-900 dark:text-white">Price History</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
                     Track historical price trends and see your total savings over time
                   </p>
                 </div>
@@ -227,13 +227,13 @@ export default function HomePage() {
 
               <div className="flex space-x-4">
                 <div className="flex-shrink-0">
-                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center">
-                    <Plane className="h-5 w-5 text-primary-600" />
+                  <div className="h-10 w-10 rounded-lg bg-primary-100 dark:bg-sky-500/20 flex items-center justify-center">
+                    <Plane className="h-5 w-5 text-primary-600 dark:text-sky-400" />
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1">All Airlines</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <h3 className="font-semibold mb-1 text-gray-900 dark:text-white">All Airlines</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
                     Works with every major airline and booking platform worldwide
                   </p>
                 </div>
