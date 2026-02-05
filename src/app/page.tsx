@@ -60,22 +60,18 @@ export default function HomePage() {
         {/* Stats Section */}
         <section className="py-12 bg-gray-50 dark:bg-slate-800/50">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-              <div>
-                <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">$2.5M+</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">Saved by Users</div>
-              </div>
-              <div>
-                <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">50K+</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">Trips Monitored</div>
-              </div>
+            <div className="grid grid-cols-3 gap-8 text-center max-w-3xl mx-auto">
               <div>
                 <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">24/7</div>
                 <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">Price Monitoring</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">$350</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">Avg. Savings/Trip</div>
+                <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">100+</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">Airlines Supported</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-primary-600 dark:text-sky-400">Free</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">During Beta</div>
               </div>
             </div>
           </div>
@@ -243,17 +239,17 @@ export default function HomePage() {
         </section>
 
         {/* CTA Section */}
-        <section className="py-20 bg-primary-900 dark:bg-primary-950">
+        <section className="py-20 bg-slate-900 dark:bg-slate-950">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-3xl font-bold text-white sm:text-4xl mb-6">
               Start Saving on Your Flights Today
             </h2>
-            <p className="text-xl text-primary-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of travelers who never overpay for flights. 
+            <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
+              Join thousands of travelers who never overpay for flights.
               Free during our beta period - no credit card required.
             </p>
             <Link href="/auth/signin">
-              <Button size="lg" variant="secondary" className="text-primary-900">
+              <Button size="lg" className="bg-sky-500 hover:bg-sky-600 text-white font-semibold px-8 py-3">
                 Get Started Free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
