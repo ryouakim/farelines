@@ -1,4 +1,5 @@
 import { Header } from '@/components/layout/header'
+import { Footer } from '@/components/layout/footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -215,6 +216,7 @@ export default function PricingPage() {
           </div>
         </div>
       </main>
+      <Footer />
     </>
   )
 }

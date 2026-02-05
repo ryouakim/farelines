@@ -1,18 +1,17 @@
 import Link from 'next/link'
 import { Header } from '@/components/layout/header'
+import { Footer } from '@/components/layout/footer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { 
-  Plane, 
-  Bell, 
-  DollarSign, 
+import {
+  Plane,
+  Bell,
+  DollarSign,
   Shield,
   Search,
   TrendingDown,
-  CheckCircle,
   ArrowRight,
   BarChart3,
-  Lock,
   Zap
 } from 'lucide-react'
 
@@ -262,53 +261,8 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Footer */}
-        <footer className="bg-gray-50 dark:bg-gray-900 border-t">
-          <div className="container mx-auto px-4 py-12">
-            <div className="grid md:grid-cols-4 gap-8">
-              <div>
-                <div className="flex items-center space-x-2 mb-4">
-                  <Plane className="h-6 w-6 text-primary-600 rotate-45" />
-                  <span className="text-xl font-bold">Farelines</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Never overpay for flights again. Track prices and save on every trip.
-                </p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4">Product</h3>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li><Link href="/how-it-works" className="hover:text-primary">How It Works</Link></li>
-                  <li><Link href="/pricing" className="hover:text-primary">Pricing</Link></li>
-                  <li><Link href="/app" className="hover:text-primary">Dashboard</Link></li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4">Company</h3>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li><Link href="/about" className="hover:text-primary">About</Link></li>
-                  <li><Link href="/contact" className="hover:text-primary">Contact</Link></li>
-                  <li><Link href="/blog" className="hover:text-primary">Blog</Link></li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4">Legal</h3>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li><Link href="/privacy" className="hover:text-primary">Privacy Policy</Link></li>
-                  <li><Link href="/terms" className="hover:text-primary">Terms of Service</Link></li>
-                </ul>
-              </div>
-            </div>
-            
-            <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-              <p>&copy; {new Date().getFullYear()} Farelines. All rights reserved.</p>
-            </div>
-          </div>
-        </footer>
       </main>
+      <Footer />
     </>
   )
 }
