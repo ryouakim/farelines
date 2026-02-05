@@ -38,7 +38,6 @@ export default function AboutPage() {
   ]
 
   const stats = [
-    { value: '$2.5M+', label: 'Saved by Users' },
     { value: '50K+', label: 'Trips Monitored' },
     { value: '24/7', label: 'Price Monitoring' },
     { value: '$350', label: 'Avg. Savings Per Trip' }
@@ -113,7 +112,7 @@ export default function AboutPage() {
         {/* Stats Section */}
         <section className="py-12 bg-gray-50 dark:bg-gray-900/50">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div className="grid grid-cols-3 gap-8 text-center max-w-3xl mx-auto">
               {stats.map((stat, index) => (
                 <div key={index}>
                   <div className="text-3xl font-bold text-primary-600">{stat.value}</div>
@@ -185,12 +184,10 @@ export default function AboutPage() {
               no credit card required.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/auth/signin">
-                <Button size="lg" variant="secondary" className="text-primary-900">
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
+              <Button size="lg" variant="secondary" className="text-gray-500 bg-gray-200 cursor-not-allowed" disabled>
+                Start Free Trial
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
               <Link href="/contact">
                 <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
                   Contact Us
