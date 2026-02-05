@@ -200,9 +200,11 @@ async function checkFarePrice(trip: any) {
     }
   }
 
-  // Fallback to mock data only if enabled
-  if (process.env.ENABLE_MOCK_FALLBACK === 'true') {
-    console.log(`Falling back to mock prices for trip ${trip._id}`);
+  // Fallback to mock data if enabled (default: true when no Amadeus config)
+  // This ensures the system works out of the box
+  const enableMockFallback = process.env.ENABLE_MOCK_FALLBACK !== 'false';
+  if (enableMockFallback) {
+    console.log(`Falling back to mock prices for trip ${trip._id} (no Amadeus API configured)`);
     return generateMockPrice(trip);
   }
 
