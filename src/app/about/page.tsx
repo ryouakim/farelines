@@ -69,27 +69,42 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Our Story */}
+        {/* Founder Story */}
         <section className="py-20 bg-white dark:bg-background">
           <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto">
-              <h2 className="text-3xl font-bold mb-6">Our Story</h2>
-              <div className="prose prose-lg dark:prose-invert">
-                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  Farelines was born out of frustration. As frequent travelers, we experienced
-                  firsthand the disappointment of watching flight prices drop after booking,
-                  only to realize too late that we could have saved hundreds of dollars.
-                </p>
-                <p className="text-gray-600 dark:text-gray-300 mb-4">
-                  We knew there had to be a better way. So we built Farelines, a simple tool that
-                  monitors your booked flights and alerts you the moment prices drop below what
-                  you paid. No more manual price checking, no more missed opportunities.
-                </p>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Today, Farelines has helped thousands of travelers save over $2.5 million on
-                  their flights. And we are just getting started. Our goal is to make flight
-                  price monitoring accessible to everyone, so no one ever has to overpay again.
-                </p>
+            <div className="max-w-4xl mx-auto">
+              <div className="grid md:grid-cols-3 gap-8 items-center">
+                <div className="md:col-span-1">
+                  <div className="w-48 h-48 mx-auto rounded-full bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900/30 dark:to-primary-800/30 flex items-center justify-center">
+                    <span className="text-6xl font-bold text-primary-600">JY</span>
+                  </div>
+                  <div className="text-center mt-4">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Joseph Youakim</h3>
+                    <p className="text-muted-foreground">Founder</p>
+                  </div>
+                </div>
+                <div className="md:col-span-2">
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">Our Story</h2>
+                  <div className="space-y-4 text-gray-600 dark:text-gray-300">
+                    <p>
+                      I began developing Farelines after noticing repeated price drops on flights I booked
+                      for summer basketball tournaments. It was frustrating to see fares decrease after I
+                      had already purchased my tickets, knowing that airlines often offer credits or refunds
+                      when prices drop.
+                    </p>
+                    <p>
+                      The site allows users to track booked flights and receive alerts when fares drop,
+                      helping them capture airfare savings that would otherwise go unnoticed. What started
+                      as a personal solution has grown into a tool that helps travelers everywhere save
+                      money on their flights.
+                    </p>
+                    <p>
+                      Our mission is simple: make sure you never overpay for a flight again. By monitoring
+                      prices 24/7 and alerting you the moment your fare drops, Farelines helps you claim
+                      the refunds and credits you deserve.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
