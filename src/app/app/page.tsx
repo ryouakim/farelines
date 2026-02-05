@@ -133,48 +133,48 @@ export default function DashboardPage() {
         <div className="container mx-auto px-4 py-8 max-w-7xl">
           {/* Welcome Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">
+            <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">
               Welcome back, {session?.user?.name?.split(' ')[0]}!
             </h1>
-            <p className="text-muted-foreground text-lg">
+            <p className="text-gray-600 dark:text-gray-300 text-lg">
               Track your flights and save money on rebookings
             </p>
           </div>
 
           {/* Quick Stats */}
           <div className="grid md:grid-cols-3 gap-4 mb-8">
-            <Card>
+            <Card className="dark:bg-slate-800 dark:border-slate-700">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Trips</p>
-                    <p className="text-2xl font-bold">{trips.length}</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Trips</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{trips.length}</p>
                   </div>
-                  <Plane className="h-8 w-8 text-muted-foreground" />
+                  <Plane className="h-8 w-8 text-sky-500" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="dark:bg-slate-800 dark:border-slate-700">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Active</p>
-                    <p className="text-2xl font-bold">{activeTrips.length}</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Active</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{activeTrips.length}</p>
                   </div>
-                  <RefreshCw className="h-8 w-8 text-muted-foreground" />
+                  <RefreshCw className="h-8 w-8 text-sky-500" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="dark:bg-slate-800 dark:border-slate-700">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Monitoring</p>
-                    <p className="text-2xl font-bold text-green-600">Active</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Monitoring</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">Active</p>
                   </div>
-                  <TrendingDown className="h-8 w-8 text-green-600" />
+                  <TrendingDown className="h-8 w-8 text-green-500" />
                 </div>
               </CardContent>
             </Card>
@@ -183,7 +183,7 @@ export default function DashboardPage() {
           {/* Active Trips */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold">
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
                 Active Trips ({activeTrips.length})
               </h2>
               <Link href="/app/trips/new">
@@ -195,11 +195,11 @@ export default function DashboardPage() {
             </div>
 
             {activeTrips.length === 0 ? (
-              <Card className="text-center py-12">
+              <Card className="text-center py-12 dark:bg-slate-800 dark:border-slate-700">
                 <CardContent>
-                  <Plane className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No active trips</h3>
-                  <p className="text-muted-foreground mb-4">
+                  <Plane className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                  <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">No active trips</h3>
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
                     Add your first trip to start monitoring flight prices
                   </p>
                   <Link href="/app/trips/new">
@@ -213,11 +213,11 @@ export default function DashboardPage() {
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {activeTrips.map((trip) => (
-                  <Card key={trip._id} className="hover:shadow-lg transition-shadow">
+                  <Card key={trip._id} className="hover:shadow-lg transition-shadow dark:bg-slate-800 dark:border-slate-700">
                     <CardContent className="p-0">
-                      <div className="p-4 border-b">
+                      <div className="p-4 border-b dark:border-slate-700">
                         <div className="flex justify-between items-start mb-3">
-                          <h3 className="font-semibold text-lg truncate">
+                          <h3 className="font-semibold text-lg truncate text-gray-900 dark:text-white">
                             {trip.tripName || 'Unnamed Trip'}
                           </h3>
                           <Button
@@ -229,7 +229,7 @@ export default function DashboardPage() {
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs dark:bg-slate-700 dark:text-gray-200">
                           {trip.fareType?.replace(/_/g, ' ') || 'Standard'}
                         </Badge>
                       </div>
@@ -240,11 +240,11 @@ export default function DashboardPage() {
                             {trip.flights.slice(0, 2).map((flight, idx) => (
                               <div key={idx} className="flex items-center justify-between">
                                 <div className="flex items-center text-sm">
-                                  <span className="font-medium">{flight.origin || 'XXX'}</span>
-                                  <ChevronRight className="h-3 w-3 mx-1 text-muted-foreground" />
-                                  <span className="font-medium">{flight.destination || 'XXX'}</span>
+                                  <span className="font-medium text-gray-900 dark:text-white">{flight.origin || 'XXX'}</span>
+                                  <ChevronRight className="h-3 w-3 mx-1 text-gray-400" />
+                                  <span className="font-medium text-gray-900 dark:text-white">{flight.destination || 'XXX'}</span>
                                 </div>
-                                <span className="text-xs text-muted-foreground">
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
                                   {flight.date ? formatDate(flight.date) : 'TBD'}
                                 </span>
                               </div>
@@ -254,21 +254,21 @@ export default function DashboardPage() {
 
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Paid:</span>
-                            <span className="font-semibold">
+                            <span className="text-sm text-gray-600 dark:text-gray-300">Paid:</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
                               {formatCurrency(trip.paidPrice || 0)}
                             </span>
                           </div>
-                          
+
                           {trip.lastCheckedPrice ? (
                             <div className="flex justify-between items-center">
-                              <span className="text-sm text-muted-foreground">Current:</span>
-                              <span className="font-semibold text-green-600">
+                              <span className="text-sm text-gray-600 dark:text-gray-300">Current:</span>
+                              <span className="font-semibold text-green-600 dark:text-green-400">
                                 {formatCurrency(trip.lastCheckedPrice)}
                               </span>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2 text-amber-600 text-sm">
+                            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
                               <AlertCircle className="h-4 w-4" />
                               <span>Awaiting price check</span>
                             </div>
@@ -277,7 +277,7 @@ export default function DashboardPage() {
 
                         <div className="mt-4">
                           <Link href={`/app/trips/${trip._id}`}>
-                            <Button className="w-full" variant="outline" size="sm">
+                            <Button className="w-full dark:border-slate-600 dark:hover:bg-slate-700" variant="outline" size="sm">
                               View Details
                             </Button>
                           </Link>

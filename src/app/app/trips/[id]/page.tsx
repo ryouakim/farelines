@@ -172,27 +172,27 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
           </Link>
 
           {/* Trip Header */}
-          <Card className="mb-6">
+          <Card className="mb-6 dark:bg-slate-800 dark:border-slate-700">
             <CardHeader>
               <div className="flex justify-between items-start">
                 <div>
-                  <CardTitle className="text-2xl mb-2">
+                  <CardTitle className="text-2xl mb-2 text-gray-900 dark:text-white">
                     {trip.tripName || 'Unnamed Trip'}
                   </CardTitle>
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="secondary">
+                    <Badge variant="secondary" className="dark:bg-slate-700 dark:text-gray-200">
                       {trip.fareType?.replace(/_/g, ' ') || 'Standard'}
                     </Badge>
                     {trip.recordLocator && (
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="dark:border-slate-600 dark:text-gray-200">
                         {trip.recordLocator}
                       </Badge>
                     )}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     size="sm"
                     onClick={handleDelete}
                     disabled={deleting}
@@ -206,26 +206,26 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
             <CardContent>
               {/* Price Summary */}
               <div className="grid md:grid-cols-3 gap-6 mb-6">
-                <div className="text-center p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
-                  <div className="text-sm text-muted-foreground mb-1">Paid Price</div>
-                  <div className="text-2xl font-bold">
+                <div className="text-center p-4 rounded-lg bg-slate-100 dark:bg-slate-700">
+                  <div className="text-sm text-gray-600 dark:text-gray-300 mb-1">Paid Price</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
                     {formatCurrency(trip.paidPrice || 0)}
                   </div>
                 </div>
-                
-                <div className="text-center p-4 rounded-lg bg-green-50 dark:bg-green-900/20">
-                  <div className="text-sm text-muted-foreground mb-1">Current Price</div>
+
+                <div className="text-center p-4 rounded-lg bg-green-50 dark:bg-green-900/30">
+                  <div className="text-sm text-gray-600 dark:text-green-300 mb-1">Current Price</div>
                   <div className="text-2xl font-bold text-green-700 dark:text-green-400">
                     {trip.lastCheckedPrice ? formatCurrency(trip.lastCheckedPrice) : 'Checking...'}
                   </div>
                 </div>
-                
-                <div className="text-center p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                  <div className="text-sm text-muted-foreground mb-1">
+
+                <div className="text-center p-4 rounded-lg bg-sky-50 dark:bg-sky-900/30">
+                  <div className="text-sm text-gray-600 dark:text-sky-300 mb-1">
                     {savings >= 0 ? 'Savings' : 'Increase'}
                   </div>
                   <div className={`text-2xl font-bold flex items-center justify-center gap-1 ${
-                    savings >= 0 ? 'text-blue-700 dark:text-blue-400' : 'text-red-700 dark:text-red-400'
+                    savings >= 0 ? 'text-sky-700 dark:text-sky-400' : 'text-red-700 dark:text-red-400'
                   }`}>
                     {savings >= 0 ? (
                       <TrendingDown className="h-5 w-5" />
@@ -235,7 +235,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
                     {formatCurrency(Math.abs(savings))}
                   </div>
                   {savings !== 0 && (
-                    <div className="text-xs text-muted-foreground mt-1">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {Math.abs(savingsPercent).toFixed(1)}%
                     </div>
                   )}
@@ -244,12 +244,12 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
 
               {/* Last Check Status */}
               {trip.lastCheckedAt && (
-                <div className="flex items-center justify-between p-3 rounded-lg border">
+                <div className="flex items-center justify-between p-3 rounded-lg border dark:border-slate-600 bg-white dark:bg-slate-700/50">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Last Checked:</span>
+                    <Clock className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-300">Last Checked:</span>
                   </div>
-                  <div className="text-sm">
+                  <div className="text-sm text-gray-900 dark:text-white">
                     {formatDateTime(trip.lastCheckedAt)}
                   </div>
                 </div>
@@ -258,10 +258,10 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
           </Card>
 
           {/* Flight Details */}
-          <Card className="mb-6">
+          <Card className="mb-6 dark:bg-slate-800 dark:border-slate-700">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plane className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
+                <Plane className="h-5 w-5 text-sky-500" />
                 Flight Details
               </CardTitle>
             </CardHeader>
@@ -269,33 +269,33 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
               {trip.flights && trip.flights.length > 0 ? (
                 <div className="space-y-4">
                   {trip.flights.map((flight: any, index: number) => (
-                    <div key={index} className="p-4 rounded-lg border bg-gray-50 dark:bg-gray-800">
+                    <div key={index} className="p-4 rounded-lg border bg-slate-50 dark:bg-slate-700 dark:border-slate-600">
                       <div className="space-y-2">
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium text-lg">{flight.origin || 'XXX'}</span>
+                            <MapPin className="h-4 w-4 text-sky-500" />
+                            <span className="font-medium text-lg text-gray-900 dark:text-white">{flight.origin || 'XXX'}</span>
                           </div>
-                          <span className="text-muted-foreground text-lg">→</span>
+                          <span className="text-gray-400 dark:text-gray-500 text-lg">→</span>
                           <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span className="font-medium text-lg">{flight.destination || 'XXX'}</span>
+                            <MapPin className="h-4 w-4 text-sky-500" />
+                            <span className="font-medium text-lg text-gray-900 dark:text-white">{flight.destination || 'XXX'}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-300">
                           <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
+                            <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                             {flight.date ? formatDate(flight.date) : 'TBD'}
                           </div>
                           {flight.flightNumber && (
                             <div className="flex items-center gap-1">
-                              <Plane className="h-4 w-4" />
+                              <Plane className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                               {flight.flightNumber}
                             </div>
                           )}
                           {flight.departureTimeLocal && (
                             <div className="flex items-center gap-1">
-                              <Clock className="h-4 w-4" />
+                              <Clock className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                               {flight.departureTimeLocal}
                             </div>
                           )}
@@ -305,7 +305,7 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
                   ))}
                 </div>
               ) : (
-                <div className="text-center text-muted-foreground py-8">
+                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                   No flight details available
                 </div>
               )}
@@ -313,32 +313,32 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
           </Card>
 
           {/* Trip Information */}
-          <Card>
+          <Card className="dark:bg-slate-800 dark:border-slate-700">
             <CardHeader>
-              <CardTitle>Trip Information</CardTitle>
+              <CardTitle className="text-gray-900 dark:text-white">Trip Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {trip.thresholdUsd && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Alert Threshold</span>
-                  <span className="font-medium">{formatCurrency(trip.thresholdUsd)}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">Alert Threshold</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(trip.thresholdUsd)}</span>
                 </div>
               )}
-              
+
               <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Created</span>
-                <span className="font-medium">
+                <span className="text-sm text-gray-600 dark:text-gray-300">Created</span>
+                <span className="font-medium text-gray-900 dark:text-white">
                   {trip.createdAt ? formatDate(trip.createdAt) : 'Unknown'}
                 </span>
               </div>
 
               {trip.googleFlightsUrl && (
-                <div className="pt-4 border-t">
-                  <a 
-                    href={trip.googleFlightsUrl} 
-                    target="_blank" 
+                <div className="pt-4 border-t dark:border-slate-600">
+                  <a
+                    href={trip.googleFlightsUrl}
+                    target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                    className="inline-flex items-center gap-2 text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
                   >
                     <ExternalLink className="h-4 w-4" />
                     View on Google Flights
