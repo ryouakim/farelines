@@ -1,19 +1,26 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { MongoClient } from 'mongodb'
+import { authOptions } from '@/lib/auth'
 
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || ''
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
+      console.log('Monitoring stats: No session found')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    console.log('Monitoring stats: Fetching for user', session.user.email)
+
     // Connect directly to MongoDB for accurate stats
+    const dbName = process.env.MONGODB_DB || 'bearlines'
+    console.log('Monitoring stats: Connecting to DB', dbName)
+
     const client = await MongoClient.connect(MONGODB_URI)
-    const db = client.db(process.env.MONGODB_DB || 'bearlines')
+    const db = client.db(dbName)
 
     try {
       // Get user's trips directly from database
@@ -21,6 +28,7 @@ export async function GET(request: Request) {
         userEmail: session.user.email
       }).toArray()
 
+      console.log('Monitoring stats: Found', trips.length, 'trips for user', session.user.email)
       const totalTrips = trips.length
       const now = new Date()
 

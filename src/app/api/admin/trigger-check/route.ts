@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { MongoClient } from 'mongodb'
+import { authOptions } from '@/lib/auth'
 
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || ''
 const client = new MongoClient(MONGODB_URI)
@@ -153,8 +154,9 @@ async function getRealFlightPrices(trip: any): Promise<{ price: number; source: 
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
+      console.log('Trigger check: No session found')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -162,7 +164,9 @@ export async function POST(request: Request) {
     console.log(`Manual trigger started by ${session.user.email}, mock mode: ${mock}`)
 
     await client.connect()
-    const db = client.db('bearlines')
+    const dbName = process.env.MONGODB_DB || 'bearlines'
+    const db = client.db(dbName)
+    console.log(`Connected to database: ${dbName}`)
     
     // Query trips the same way your dashboard does
     const userTrips = await db.collection('trips').find({
