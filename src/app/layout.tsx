@@ -65,7 +65,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
+      <body className={inter.className}>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-542PZMYLGN"
           strategy="afterInteractive"
@@ -78,8 +78,6 @@ export default function RootLayout({
             gtag('config', 'G-542PZMYLGN');
           `}
         </Script>
-      </head>
-      <body className={inter.className}>
         <Providers>
           {children}
         </Providers>
