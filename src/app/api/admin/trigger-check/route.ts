@@ -224,14 +224,14 @@ export async function POST(request: Request) {
             priceSource = realPrice.source
             console.log(`Real price for ${trip.tripName}: $${newPrice} (from ${priceSource})`)
           } else {
-            // No Amadeus API available - use mock fallback if enabled (default: true)
-            const enableMockFallback = process.env.ENABLE_MOCK_FALLBACK !== 'false'
+            // No Amadeus API available - use mock fallback only if explicitly enabled
+            const enableMockFallback = process.env.ENABLE_MOCK_FALLBACK === 'true'
             if (enableMockFallback) {
               // Generate mock price with variance
               const mockSavings = Math.floor(Math.random() * 200) - 50 // -50 to +150 variance
               newPrice = Math.max(50, trip.paidPrice + mockSavings)
               priceSource = 'mock'
-              console.log(`Using mock price for ${trip.tripName}: $${newPrice} (no Amadeus API)`)
+              console.log(`Using mock price for ${trip.tripName}: $${newPrice} (mock fallback enabled)`)
             } else {
               // Just mark as checked without updating price
               await db.collection('trips').updateOne(
