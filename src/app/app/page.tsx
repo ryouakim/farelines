@@ -9,14 +9,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
+import {
   Plus,
   Plane,
   TrendingDown,
   RefreshCw,
   AlertCircle,
   ChevronRight,
-  Trash2
+  Trash2,
+  Edit,
+  Eye
 } from 'lucide-react'
 
 // Local utility functions
@@ -275,10 +277,17 @@ export default function DashboardPage() {
                           )}
                         </div>
 
-                        <div className="mt-4">
-                          <Link href={`/app/trips/${trip._id}`}>
+                        <div className="mt-4 flex gap-2">
+                          <Link href={`/app/trips/${trip._id}`} className="flex-1">
                             <Button className="w-full dark:border-slate-600 dark:hover:bg-slate-700" variant="outline" size="sm">
-                              View Details
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </Button>
+                          </Link>
+                          <Link href={`/app/trips/${trip._id}/edit`} className="flex-1">
+                            <Button className="w-full dark:border-slate-600 dark:hover:bg-slate-700" variant="outline" size="sm">
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
                             </Button>
                           </Link>
                         </div>

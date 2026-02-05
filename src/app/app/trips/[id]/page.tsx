@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
+import {
   ArrowLeft,
   Edit,
   Trash2,
@@ -22,6 +22,7 @@ import {
   ExternalLink,
   AlertCircle
 } from 'lucide-react'
+import { PriceHistoryChart } from '@/components/trips/price-history-chart'
 
 // Local utility functions
 const formatCurrency = (amount: number) => {
@@ -191,6 +192,12 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
                   </div>
                 </div>
                 <div className="flex gap-2">
+                  <Link href={`/app/trips/${params.id}/edit`}>
+                    <Button variant="outline" size="sm">
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                  </Link>
                   <Button
                     variant="destructive"
                     size="sm"
@@ -311,6 +318,18 @@ export default function TripDetailPage({ params }: TripDetailPageProps) {
               )}
             </CardContent>
           </Card>
+
+          {/* Price History Chart */}
+          {trip.priceHistory && trip.priceHistory.length > 0 && (
+            <div className="mb-6">
+              <PriceHistoryChart
+                priceHistory={trip.priceHistory}
+                paidPrice={trip.paidPrice}
+                currentPrice={trip.lastCheckedPrice}
+                lowestSeen={trip.lowestSeenPrice}
+              />
+            </div>
+          )}
 
           {/* Trip Information */}
           <Card className="dark:bg-slate-800 dark:border-slate-700">
