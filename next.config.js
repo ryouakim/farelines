@@ -22,6 +22,17 @@ const nextConfig = {
       ],
     },
   ],
+  // ✅ Proxy GA4 requests through own domain to bypass ad blockers
+  rewrites: async () => [
+    {
+      source: "/gsi/gtag.js",
+      destination: "https://www.googletagmanager.com/gtag/js?id=G-542PZMYLGN",
+    },
+    {
+      source: "/gsi/g/collect",
+      destination: "https://www.google-analytics.com/g/collect",
+    },
+  ],
 };
 
 module.exports = nextConfig;
