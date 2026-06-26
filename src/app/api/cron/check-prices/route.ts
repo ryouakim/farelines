@@ -5,8 +5,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MongoClient } from 'mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI!;
-const MONGODB_DB = process.env.MONGODB_DB || 'farelines';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || '';
+const MONGODB_DB = process.env.MONGODB_DB || process.env.DB_NAME || 'farelines';
 
 export const maxDuration = 60; // Maximum duration for Vercel function (60 seconds)
 export const dynamic = 'force-dynamic';
