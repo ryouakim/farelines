@@ -7,7 +7,10 @@ const logger = require('./logger');
 
 class AmadeusFlightService {
   constructor() {
-    this.baseUrl = 'https://test.api.amadeus.com'; // Use production URL later
+    this.baseUrl = config.AMADEUS.USE_PRODUCTION
+      ? config.AMADEUS.PRODUCTION_URL
+      : config.AMADEUS.BASE_URL;
+    this.hostname = new URL(this.baseUrl).hostname;
     this.accessToken = null;
     this.tokenExpiry = null;
   }
@@ -24,7 +27,7 @@ class AmadeusFlightService {
       const postData = `grant_type=client_credentials&client_id=${process.env.AMADEUS_API_KEY}&client_secret=${process.env.AMADEUS_API_SECRET}`;
       
       const options = {
-        hostname: 'test.api.amadeus.com',
+        hostname: this.hostname,
         port: 443,
         path: '/v1/security/oauth2/token',
         method: 'POST',
@@ -77,7 +80,7 @@ class AmadeusFlightService {
       });
 
       const options = {
-        hostname: 'test.api.amadeus.com',
+        hostname: this.hostname,
         port: 443,
         path: `/v2/shopping/flight-offers?${params.toString()}`,
         method: 'GET',
